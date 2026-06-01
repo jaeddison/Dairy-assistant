@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Dairy">
+<title>Dairy Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f0e8;--surface:#fffdf7;--border:#c8b89a;
+  --text:#2c2416;--muted:#7a6a52;--accent:#5c3d1e;
+  --green:#3a6b3a;--red:#8b2020;--amber:#b87d1a;
+}
+body{background:var(--bg);font-family:'Libre Baskerville',Georgia,serif;color:var(--text);min-height:100vh}
+.app{max-width:860px;margin:0 auto;padding:20px 14px 80px}
+.header{border-bottom:2px solid var(--accent);padding-bottom:12px;margin-bottom:20px}
+.header h1{font-size:1.5rem;letter-spacing:.02em}
+.header p{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted);margin-top:4px}
+.save-status{font-size:.62rem;font-family:'JetBrains Mono',monospace;color:var(--green);margin-top:4px;min-height:13px}
+.tabs{display:flex;gap:2px;margin-bottom:18px;border-bottom:2px solid var(--border);overflow-x:auto}
+.tab{background:none;border:none;cursor:pointer;font-family:'Libre Baskerville',serif;font-size:.82rem;color:var(--muted);padding:8px 12px 10px;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+.tab:hover:not(.active){color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px;margin-bottom:14px}
+.card h2{font-size:.95rem;margin-bottom:14px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+.bay-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.bay-cell{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px 8px;text-align:center}
+.bay-name{font-size:.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em}
+.bay-count{font-size:1.9rem;font-weight:700;color:var(--accent);line-height:1.1;margin-top:2px}
+.bay-cell.total{background:var(--accent);border-color:var(--accent)}
+.bay-cell.total .bay-name{color:rgba(255,255,255,.7)}
+.bay-cell.total .bay-count{color:#fff}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{font-family:'JetBrains Mono',monospace;font-size:.64rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:6px 6px;border-bottom:1px solid var(--border);text-align:left}
+td{padding:7px 6px;border-bottom:1px solid #e8dfc8;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.tag{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:.88rem}
+.badge{display:inline-block;padding:2px 6px;border-radius:2px;font-size:.66rem;font-family:'JetBrains Mono',monospace}
+.badge.green{background:#e8f3e8;color:var(--green);border:1px solid #b8d8b8}
+.badge.amber{background:#fef3e0;color:var(--amber);border:1px solid #f0d090}
+.badge.red{background:#fce8e8;color:var(--red);border:1px solid #e8b8b8}
+.herd-count{font-size:2.6rem;font-weight:700;color:var(--green);text-align:center;padding:10px 0}
+.herd-count span{display:block;font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--muted);font-weight:400;margin-top:2px}
+.empty{text-align:center;color:var(--muted);font-style:italic;font-size:.82rem;padding:18px 0}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:flex-end;border-top:1px dashed var(--border);padding-top:14px}
+.field{display:flex;flex-direction:column}
+.field label{font-size:.65rem;font-family:'JetBrains Mono',monospace;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+input,select{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:7px 8px;font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--text);outline:none;-webkit-appearance:none}
+input:focus,select:focus{border-color:var(--accent)}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:3px;padding:8px 14px;font-family:'Libre Baskerville',serif;font-size:.8rem;cursor:pointer;align-self:flex-end}
+.btn:active{background:#3d2810}
+.btn.sec{background:none;color:var(--muted);border:1px solid var(--border)}
+.btn.sec:active{color:var(--text)}
+.del{background:none;border:none;cursor:pointer;color:#c8a888;font-size:.9rem;padding:3px 5px}
+.del:active{color:var(--red)}
+.export-box{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:.66rem;white-space:pre-wrap;color:var(--muted);max-height:280px;overflow-y:auto;margin-top:14px;word-break:break-all}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>🐄 Dairy Assistant</h1>
+    <p>Winter tracking — bays · treatments · calving pipeline</p>
+    <div class="save-status" id="saveStatus"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab(0)">Bay Totals</button>
+    <button class="tab" onclick="showTab(1)">Treatments</button>
+    <button class="tab" onclick="showTab(2)">Calving</button>
+    <button class="tab" onclick="showTab(3)">Export</button>
+  </div>
+
+  <!-- TAB 0: BAYS -->
+  <div id="tab0">
+    <div class="card">
+      <h2>Headcounts by Bay</h2>
+      <div class="bay-grid" id="bayGrid"></div>
+      <div class="form-row">
+        <div class="field">
+          <label>Bay</label>
+          <select id="baySelect"></select>
+        </div>
+        <div class="field">
+          <label>Set count to</label>
+          <input type="number" id="bayCount" min="0" placeholder="0" style="width:80px">
+        </div>
+        <button class="btn" onclick="setBayCount()">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 1: TREATMENTS -->
+  <div id="tab1" class="hidden">
+    <div class="card">
+      <h2>Treatment &amp; Meat Withholding</h2>
+      <div id="txTable"></div>
+      <div class="form-row">
+        <div class="field"><label>Tag #</label><input id="txTag" placeholder="1234" style="width:70px"></div>
+        <div class="field"><label>Location</label><select id="txLoc"></select></div>
+        <div class="field"><label>Treatment / Reason</label><input id="txReason" placeholder="Penicillin" style="width:130px"></div>
+        <div class="field"><label>Meat Withhold Date</label><input type="date" id="txDate"></div>
+        <button class="btn" onclick="addTreatment()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: CALVING -->
+  <div id="tab2" class="hidden">
+    <div class="card">
+      <h2>New Moms — Left Barn</h2>
+      <div id="momTable"></div>
+      <div class="form-row">
+        <div class="field"><label>Tag #</label><input id="momTag" placeholder="1234" style="width:80px"></div>
+        <div class="field"><label>Date Left Barn</label><input type="date" id="momDate"></div>
+        <button class="btn" onclick="addMom()">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Colostrum Mob</h2>
+      <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px;font-style:italic">⚠ Amber at 3 days, red at 5+ days</p>
+      <div id="colTable"></div>
+    </div>
+    <div class="card">
+      <h2>Milking Herd</h2>
+      <div id="milkCount" class="herd-count">0<span>head in milking herd</span></div>
+      <div id="milkTable"></div>
+      <div class="form-row">
+        <div class="field"><label>Add Tag Directly</label><input id="milkTag" placeholder="1234" style="width:80px"></div>
+        <button class="btn" onclick="addToMilking()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: EXPORT / IMPORT -->
+  <div id="tab3" class="hidden">
+    <div class="card">
+      <h2>Export</h2>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Copy your current data and paste it to Claude along with any instructions. Claude will send back an Import Code with all changes applied.</p>
+      <button class="btn" onclick="doExport()">Copy Export to Clipboard</button>
+      <div id="exportBox" class="export-box hidden"></div>
+    </div>
+    <div class="card">
+      <h2>Import</h2>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Paste the Import Code sent back by Claude, then tap Load.</p>
+      <textarea id="importBox" placeholder="Paste import code here…" style="width:100%;min-height:100px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text);resize:vertical;outline:none"></textarea>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn" onclick="doImport()">Load Import Code</button>
+        <span id="importStatus" style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--green)"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BAYS = ["Bay 1","Bay 2","Bay 3","Bay 4","Bay 5","Bay 6","Penicillin Paddock"];
+const KEY = "dairy-v3";
+
+// ── State
+let S = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {
+    bays: {"Bay 1":0,"Bay 2":0,"Bay 3":0,"Bay 4":0,"Bay 5":0,"Bay 6":0,"Penicillin Paddock":0},
+    treatments: [],
+    newMoms: [],
+    colostrumMob: [],
+    milkingHerd: []
+  };
+}
+
+let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(S));
+      showStatus("Saved ✓");
+    } catch(e) {
+      showStatus("⚠ Save failed");
+    }
+  }, 300);
+}
+
+function showStatus(msg) {
+  const el = document.getElementById("saveStatus");
+  el.textContent = msg;
+  setTimeout(() => el.textContent = "", 2000);
+}
+
+// ── Helpers
+const uid = () => Date.now() + Math.random();
+const todayStr = () => new Date().toISOString().slice(0,10);
+const fmtDate = d => { if(!d) return "—"; const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`; };
+const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
+const bayTotal = () => Object.values(S.bays).reduce((a,b)=>a+b,0);
+
+function clearanceBadge(dateStr) {
+  const diff = Math.floor((new Date(dateStr) - new Date(new Date().toDateString())) / 86400000);
+  if (diff < 0) return `<span class="badge green">Cleared</span>`;
+  if (diff === 0) return `<span class="badge amber">Today</span>`;
+  if (diff <= 7) return `<span class="badge amber">${diff}d</span>`;
+  return `<span class="badge red">${diff}d</span>`;
+}
+
+function colAlert(dateStr) {
+  const d = daysSince(dateStr);
+  if (d >= 5) return `<span class="badge red">⚠ ${d}d</span>`;
+  if (d >= 3) return `<span class="badge amber">${d}d</span>`;
+  return `<span class="badge green">${d}d</span>`;
+}
+
+// ── Tab switching
+let currentTab = 0;
+function showTab(n) {
+  document.querySelectorAll(".tab").forEach((t,i) => t.classList.toggle("active", i===n));
+  for(let i=0;i<4;i++) document.getElementById("tab"+i).classList.toggle("hidden", i!==n);
+  currentTab = n;
+  render();
+}
+
+// ── Render
+function render() {
+  renderBays();
+  renderTreatments();
+  renderCalving();
+}
+
+function renderBays() {
+  const grid = document.getElementById("bayGrid");
+  let html = BAYS.map(b => `
+    <div class="bay-cell">
+      <div class="bay-name">${b}</div>
+      <div class="bay-count">${S.bays[b]||0}</div>
+    </div>`).join("");
+  html += `<div class="bay-cell total"><div class="bay-name">All Bays</div><div class="bay-count">${bayTotal()}</div></div>`;
+  grid.innerHTML = html;
+
+  // Populate selects
+  ["baySelect","txLoc"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = BAYS.map(b=>`<option${b===cur?" selected":""}>${b}</option>`).join("");
+  });
+}
+
+function renderTreatments() {
+  const el = document.getElementById("txTable");
+  if (!el) return;
+  if (S.treatments.length === 0) { el.innerHTML = `<p class="empty">No animals under treatment</p>`; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Tag</th><th>Location</th><th>Treatment</th><th>Withhold</th><th>Status</th><th></th></tr></thead>
+    <tbody>${S.treatments.map(t=>`
+      <tr>
+        <td><span class="tag">${t.tag}</span></td>
+        <td>${t.location}</td>
+        <td>${t.treatment}</td>
+        <td style="font-family:monospace">${fmtDate(t.meatWithholdDate)}</td>
+        <td>${clearanceBadge(t.meatWithholdDate)}</td>
+        <td><button class="del" onclick="delTx('${t.id}')">✕</button></td>
+      </tr>`).join("")}
+    </tbody></table>`;
+}
+
+function renderCalving() {
+  // New Moms
+  const momEl = document.getElementById("momTable");
+  if (momEl) {
+    if (S.newMoms.length === 0) { momEl.innerHTML = `<p class="empty">No new moms yet</p>`; }
+    else momEl.innerHTML = `<table>
+      <thead><tr><th>Tag</th><th>Left Barn</th><th>Days</th><th></th><th></th></tr></thead>
+      <tbody>${S.newMoms.map(m=>`
+        <tr>
+          <td><span class="tag">${m.tag}</span></td>
+          <td>${fmtDate(m.dateLeftBarn)}</td>
+          <td>${daysSince(m.dateLeftBarn)}d</td>
+          <td><button class="btn sec" style="font-size:.7rem;padding:4px 8px" onclick="momToCol('${m.id}')">→ Colostrum</button></td>
+          <td><button class="del" onclick="delMom('${m.id}')">✕</button></td>
+        </tr>`).join("")}
+      </tbody></table>`;
+  }
+
+  // Colostrum
+  const colEl = document.getElementById("colTable");
+  if (colEl) {
+    if (S.colostrumMob.length === 0) { colEl.innerHTML = `<p class="empty">Colostrum mob is empty</p>`; }
+    else colEl.innerHTML = `<table>
+      <thead><tr><th>Tag</th><th>Entered</th><th>Days</th><th></th><th></th></tr></thead>
+      <tbody>${S.colostrumMob.map(c=>`
+        <tr>
+          <td><span class="tag">${c.tag}</span></td>
+          <td>${fmtDate(c.dateEntered)}</td>
+          <td>${colAlert(c.dateEntered)}</td>
+          <td><button class="btn sec" style="font-size:.7rem;padding:4px 8px" onclick="colToMilk('${c.id}')">→ Milking</button></td>
+          <td><button class="del" onclick="delCol('${c.id}')">✕</button></td>
+        </tr>`).join("")}
+      </tbody></table>`;
+  }
+
+  // Milking
+  const milkC = document.getElementById("milkCount");
+  if (milkC) milkC.innerHTML = `${S.milkingHerd.length}<span>head in milking herd</span>`;
+  const milkEl = document.getElementById("milkTable");
+  if (milkEl) {
+    if (S.milkingHerd.length === 0) { milkEl.innerHTML = ""; }
+    else milkEl.innerHTML = `<table style="margin-top:8px">
+      <thead><tr><th>Tag</th><th></th></tr></thead>
+      <tbody>${S.milkingHerd.map(c=>`
+        <tr>
+          <td><span class="tag">${c.tag}</span></td>
+          <td><button class="del" onclick="delMilk('${c.id}')">✕</button></td>
+        </tr>`).join("")}
+      </tbody></table>`;
+  }
+}
+
+// ── Actions: Bays
+function setBayCount() {
+  const bay = document.getElementById("baySelect").value;
+  const n = parseInt(document.getElementById("bayCount").value);
+  if (isNaN(n) || n < 0) return;
+  S.bays[bay] = n;
+  document.getElementById("bayCount").value = "";
+  save(); render();
+}
+
+// ── Actions: Treatments
+function addTreatment() {
+  const tag = document.getElementById("txTag").value.trim();
+  const loc = document.getElementById("txLoc").value;
+  const reason = document.getElementById("txReason").value.trim();
+  const date = document.getElementById("txDate").value;
+  if (!tag || !reason || !date) return;
+  S.treatments.push({ id: String(uid()), tag, location: loc, treatment: reason, meatWithholdDate: date });
+  S.treatments.sort((a,b) => a.meatWithholdDate.localeCompare(b.meatWithholdDate));
+  ["txTag","txReason","txDate"].forEach(id => document.getElementById(id).value = "");
+  save(); render();
+}
+function delTx(id) { S.treatments = S.treatments.filter(t=>t.id!==id); save(); render(); }
+
+// ── Actions: New Moms
+function addMom() {
+  const tag = document.getElementById("momTag").value.trim();
+  const date = document.getElementById("momDate").value || todayStr();
+  if (!tag) return;
+  S.newMoms.push({ id: String(uid()), tag, dateLeftBarn: date });
+  document.getElementById("momTag").value = "";
+  save(); render();
+}
+function delMom(id) { S.newMoms = S.newMoms.filter(m=>m.id!==id); save(); render(); }
+function momToCol(id) {
+  const m = S.newMoms.find(x=>x.id===id); if (!m) return;
+  S.newMoms = S.newMoms.filter(x=>x.id!==id);
+  S.colostrumMob.push({ id: String(uid()), tag: m.tag, dateEntered: todayStr() });
+  save(); render();
+}
+
+// ── Actions: Colostrum
+function delCol(id) { S.colostrumMob = S.colostrumMob.filter(c=>c.id!==id); save(); render(); }
+function colToMilk(id) {
+  const c = S.colostrumMob.find(x=>x.id===id); if (!c) return;
+  S.colostrumMob = S.colostrumMob.filter(x=>x.id!==id);
+  S.milkingHerd.push({ id: String(uid()), tag: c.tag });
+  save(); render();
+}
+
+// ── Actions: Milking
+function addToMilking() {
+  const tag = document.getElementById("milkTag").value.trim();
+  if (!tag) return;
+  S.milkingHerd.push({ id: String(uid()), tag });
+  document.getElementById("milkTag").value = "";
+  save(); render();
+}
+function delMilk(id) { S.milkingHerd = S.milkingHerd.filter(c=>c.id!==id); save(); render(); }
+
+// ── Export
+function doExport() {
+  const lines = [
+    `DAIRY ASSISTANT EXPORT — ${new Date().toLocaleString()}`,
+    "", "=== BAY TOTALS ===",
+    ...BAYS.map(b=>`${b}: ${S.bays[b]||0}`),
+    `TOTAL: ${bayTotal()}`,
+    "", "=== TREATMENTS ===",
+    S.treatments.length===0?"(none)":S.treatments.map(t=>`Tag ${t.tag} | ${t.location} | ${t.treatment} | Clear: ${fmtDate(t.meatWithholdDate)}`).join("\n"),
+    "", "=== NEW MOMS ===",
+    S.newMoms.length===0?"(none)":S.newMoms.map(m=>`Tag ${m.tag} | Left barn: ${fmtDate(m.dateLeftBarn)}`).join("\n"),
+    "", "=== COLOSTRUM MOB ===",
+    S.colostrumMob.length===0?"(none)":S.colostrumMob.map(c=>`Tag ${c.tag} | Entered: ${fmtDate(c.dateEntered)} | Days: ${daysSince(c.dateEntered)}`).join("\n"),
+    "", "=== MILKING HERD ===",
+    `Total: ${S.milkingHerd.length}`,
+    S.milkingHerd.length===0?"(none)":S.milkingHerd.map(c=>`Tag ${c.tag}`).join(", "),
+  ].join("\n");
+
+  const box = document.getElementById("exportBox");
+  box.textContent = lines;
+  box.classList.remove("hidden");
+  navigator.clipboard?.writeText(lines).catch(()=>{});
+}
+
+// ── Keyboard: Enter to submit in inputs
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  if (currentTab === 0) setBayCount();
+  else if (currentTab === 1) addTreatment();
+  else if (currentTab === 2) {
+    const milkFocused = document.activeElement === document.getElementById("milkTag");
+    if (milkFocused) addToMilking(); else addMom();
+  }
+});
+
+// ── Init
+document.getElementById("momDate").value = todayStr();
+render();
+</script>
+</body>
+</html>
