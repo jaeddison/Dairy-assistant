@@ -73,3 +73,4 @@ When a new version of `index.html` is available:
 - Grazing calculator values stored separately under `dairy-graze-v4`
 - Snapshots stored under `dairy-snapshots-v4`
 - Import parser accepts bare JSON or `DAIRY_IMPORT:` prefixed blobs, with straight quotes only
+© 2026 James Eddison. All rights reserved.
