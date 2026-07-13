@@ -822,7 +822,7 @@ function doExport() {
 }
 
 // ── Import
-function doImport() {
+async function doImport() {
   const raw = document.getElementById("importBox").value.trim();
   const status = document.getElementById("importStatus");
   if (!raw) { status.style.color="var(--red)"; status.textContent="✕ Nothing pasted"; setTimeout(()=>status.textContent="",3000); return; }
@@ -836,11 +836,28 @@ function doImport() {
     if (!imported.bays) throw new Error();
     ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive']
       .forEach(k => { imported[k] = imported[k] || []; });
+    // Pause the Firestore listener while we write
+    if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
     S = imported;
-    save();
+    // Write directly to Firestore and wait for it to complete
+    await window._setDoc(window._DATA_DOC, S);
     document.getElementById("importBox").value = "";
     status.style.color="var(--green)"; status.textContent="✓ Imported";
     setTimeout(()=>status.textContent="",3000);
+    render();
+    // Re-attach the listener
+    _unsubscribe = window._onSnapshot(window._DATA_DOC, snap => {
+      if (snap.exists()) {
+        const d = snap.data();
+        ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive']
+          .forEach(k => { d[k] = d[k] || []; });
+        S = d;
+      }
+      setSyncStatus('live');
+      render();
+      if (currentTab === 3) setTimeout(initGraze, 50);
+    });
+    window._unsubscribe = _unsubscribe;
   } catch(e) {
     status.style.color="var(--red)"; status.textContent="✕ Invalid — check and try again";
     setTimeout(()=>status.textContent="",4000);
