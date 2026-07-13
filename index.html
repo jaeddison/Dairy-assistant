@@ -1,4 +1,3 @@
-<!-- © 2026 James Eddison. All rights reserved. Unauthorised copying, modification, or distribution of this software is prohibited. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,10 +7,61 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Dairy">
 <title>Dairy Assistant</title>
+<!-- © 2026 James Eddison. All rights reserved. Unauthorised copying, modification, or distribution of this software is prohibited. -->
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, onSnapshot, setDoc, getDoc }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDAt7Pj1FwsFHpnOIxUvP83FDKn4Tq5r8c",
+  authDomain: "calf-assistant.firebaseapp.com",
+  projectId: "calf-assistant",
+  storageBucket: "calf-assistant.firebasestorage.app",
+  messagingSenderId: "848244954361",
+  appId: "1:848244954361:web:a757848d5bb81e21363e28"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const DATA_DOC = doc(db, 'dairy', 'D1');
+const GRAZE_DOC = doc(db, 'dairy', 'D1-graze');
+
+// ── Expose to window for non-module code
+window._auth = auth;
+window._db = db;
+window._DATA_DOC = DATA_DOC;
+window._GRAZE_DOC = GRAZE_DOC;
+window._signInWithEmailAndPassword = signInWithEmailAndPassword;
+window._signOut = signOut;
+window._onAuthStateChanged = onAuthStateChanged;
+window._onSnapshot = onSnapshot;
+window._setDoc = setDoc;
+window._getDoc = getDoc;
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('userEmail').textContent = user.email;
+    window.startFirestoreSync();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+    if (window._unsubscribe) window._unsubscribe();
+  }
+});
+</script>
+
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -20,11 +70,28 @@
   --green:#3a6b3a;--red:#8b2020;--amber:#b87d1a;
 }
 body{background:var(--bg);font-family:'Libre Baskerville',Georgia,serif;color:var(--text);min-height:100vh}
+
+/* ── Login ── */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:32px 24px;width:100%;max-width:360px}
+.login-box h1{font-size:1.4rem;color:var(--accent);margin-bottom:6px}
+.login-box p{font-size:.78rem;color:var(--muted);margin-bottom:24px;font-family:'JetBrains Mono',monospace}
+.login-field{display:flex;flex-direction:column;margin-bottom:14px}
+.login-field label{font-size:.65rem;font-family:'JetBrains Mono',monospace;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.login-field input{padding:10px;border:1px solid var(--border);border-radius:3px;background:var(--bg);font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--text);outline:none}
+.login-field input:focus{border-color:var(--accent)}
+.login-err{font-size:.72rem;color:var(--red);font-family:'JetBrains Mono',monospace;margin-bottom:10px;min-height:16px}
+#appScreen{display:none}
+
+/* ── App ── */
 .app{max-width:860px;margin:0 auto;padding:20px 14px 80px}
 .header{border-bottom:2px solid var(--accent);padding-bottom:12px;margin-bottom:20px}
 .header h1{font-size:1.5rem;letter-spacing:.02em}
-.header p{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted);margin-top:4px}
-.save-status{font-size:.62rem;font-family:'JetBrains Mono',monospace;color:var(--green);margin-top:4px;min-height:13px}
+.header-meta{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.header p{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted)}
+.save-status{font-size:.62rem;font-family:'JetBrains Mono',monospace;color:var(--green);min-height:13px}
+.signout-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:3px 8px;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);cursor:pointer}
+.signout-btn:active{color:var(--red);border-color:var(--red)}
 .tabs{display:flex;margin-bottom:18px;border-bottom:2px solid var(--border)}
 .tab{background:none;border:none;cursor:pointer;font-family:'Libre Baskerville',serif;font-size:.75rem;color:var(--muted);padding:8px 0 10px;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;flex:1;text-align:center}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
@@ -32,10 +99,10 @@ body{background:var(--bg);font-family:'Libre Baskerville',Georgia,serif;color:va
 .card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px;margin-bottom:14px}
 .card h2{font-size:.95rem;margin-bottom:14px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
 .bay-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
-.bay-cell{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px 8px;text-align:center}
+.bay-cell{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px 8px;text-align:center;cursor:pointer}
 .bay-name{font-size:.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em}
 .bay-count{font-size:1.9rem;font-weight:700;color:var(--accent);line-height:1.1;margin-top:2px}
-.bay-cell.total{background:var(--accent);border-color:var(--accent)}
+.bay-cell.total{background:var(--accent);border-color:var(--accent);cursor:default}
 .bay-cell.total .bay-name{color:rgba(255,255,255,.7)}
 .bay-cell.total .bay-count{color:#fff}
 table{width:100%;border-collapse:collapse;font-size:.8rem}
@@ -48,8 +115,6 @@ tr.archived-row td{color:var(--muted);font-style:italic}
 .badge.green{background:#e8f3e8;color:var(--green);border:1px solid #b8d8b8}
 .badge.amber{background:#fef3e0;color:var(--amber);border:1px solid #f0d090}
 .badge.red{background:#fce8e8;color:var(--red);border:1px solid #e8b8b8}
-.herd-count{font-size:2.6rem;font-weight:700;color:var(--green);text-align:center;padding:10px 0}
-.herd-count span{display:block;font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--muted);font-weight:400;margin-top:2px}
 .empty{text-align:center;color:var(--muted);font-style:italic;font-size:.82rem;padding:18px 0}
 .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:flex-end;border-top:1px dashed var(--border);padding-top:14px}
 .field{display:flex;flex-direction:column}
@@ -60,21 +125,23 @@ input:focus,select:focus{border-color:var(--accent)}
 .btn:active{background:#3d2810}
 .btn.sec{background:none;color:var(--muted);border:1px solid var(--border)}
 .btn.sec:active{color:var(--text)}
-.btn.grn{background:var(--green)}
-.btn.grn:active{background:#2a4f2a}
+.btn.full{width:100%}
+.del{background:none;border:none;cursor:pointer;color:#c8a888;font-size:.9rem;padding:3px 5px}
+.del:active{color:var(--red)}
+.foot-btns{display:flex;gap:6px;flex-wrap:wrap}
+.foot-btn{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);cursor:pointer;transition:all .15s}
+.foot-btn.selected{background:var(--amber);border-color:var(--amber);color:#fff;font-weight:600}
 .treat-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted);cursor:pointer;transition:all .2s}
 .treat-btn.pending{background:#f5ede0;border-color:var(--amber);color:var(--amber);font-weight:600}
 .treat-btn.confirmed{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
-.del{background:none;border:none;cursor:pointer;color:#c8a888;font-size:.9rem;padding:3px 5px}
-.del:active{color:var(--red)}
-.export-box{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:.66rem;white-space:pre-wrap;color:var(--muted);max-height:280px;overflow-y:auto;margin-top:14px;word-break:break-all}
-/* Grazing calc */
 .graze-calc{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .graze-calc label{font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted)}
 .graze-calc input{width:70px;padding:5px 7px;font-family:'JetBrains Mono',monospace;font-size:.8rem;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--text);outline:none}
 .graze-calc input:focus{border-color:var(--accent)}
 .graze-result{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--accent);font-weight:600}
 .graze-result span{color:var(--muted);font-weight:400;font-size:.68rem;margin-left:4px}
+.export-box{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:.66rem;white-space:pre-wrap;color:var(--muted);max-height:280px;overflow-y:auto;margin-top:14px;word-break:break-all}
+.hidden{display:none}
 /* Bay modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:center;justify-content:center}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:24px;width:260px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
@@ -83,24 +150,42 @@ input:focus,select:focus{border-color:var(--accent)}
 .modal input:focus{border-color:var(--accent)}
 .modal-btns{display:flex;gap:8px;margin-top:16px}
 .modal-btns .btn{flex:1;text-align:center}
-.hidden{display:none}
-/* Foot toggle buttons */
-.foot-btns{display:flex;gap:6px;flex-wrap:wrap}
-.foot-btn{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);cursor:pointer;transition:all .15s}
-.foot-btn.selected{background:var(--amber);border-color:var(--amber);color:#fff;font-weight:600}
-/* Snapshot list */
-.snapshot-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #e8dfc8;font-size:.78rem}
-.snapshot-row:last-child{border-bottom:none}
-.snapshot-time{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted)}
-.archive-toggle{background:none;border:none;color:var(--muted);font-size:.75rem;font-family:'Libre Baskerville',serif;cursor:pointer;text-decoration:underline;padding:0;margin-top:10px}
+.sync-indicator{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);margin-right:6px;vertical-align:middle}
+.sync-indicator.live{background:var(--green)}
 </style>
 </head>
 <body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🐄 Dairy Assistant</h1>
+    <p>D1 — Driffield Farming Ltd</p>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn full" onclick="doSignIn()">Sign In</button>
+  </div>
+</div>
+
+<!-- ── APP SCREEN ── -->
+<div id="appScreen">
 <div class="app">
   <div class="header">
     <h1>🐄 Dairy Assistant</h1>
-    <p>Winter tracking — bays · treatments · lame cows · calving</p>
-    <div class="save-status" id="saveStatus"></div>
+    <div class="header-meta">
+      <p><span class="sync-indicator" id="syncDot"></span><span id="saveStatus">Connecting…</span></p>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted)" id="userEmail"></span>
+        <button class="signout-btn" onclick="doSignOut()">Sign out</button>
+      </div>
+    </div>
   </div>
 
   <div class="tabs">
@@ -120,7 +205,7 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
   </div>
 
-  <!-- TAB 1: TREATMENTS -->
+  <!-- TAB 1: DRY COW -->
   <div id="tab1" class="hidden">
     <div class="card">
       <h2>Dry Cow Treatments &amp; Meat Withholding</h2>
@@ -135,7 +220,7 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
   </div>
 
-  <!-- TAB 2: LAME COWS -->
+  <!-- TAB 2: LAME -->
   <div id="tab2" class="hidden">
     <div class="card">
       <h2>Lame Cow Register</h2>
@@ -146,7 +231,7 @@ input:focus,select:focus{border-color:var(--accent)}
         <div class="field"><label>Location</label><select id="lameLoc"></select></div>
         <div class="field">
           <label>Affected Foot(s)</label>
-          <div class="foot-btns" id="footBtns">
+          <div class="foot-btns">
             <button class="foot-btn" onclick="toggleFoot('LF')">Left Front</button>
             <button class="foot-btn" onclick="toggleFoot('RF')">Right Front</button>
             <button class="foot-btn" onclick="toggleFoot('LR')">Left Rear</button>
@@ -157,7 +242,7 @@ input:focus,select:focus{border-color:var(--accent)}
         <button class="btn" onclick="addLame()">Add</button>
       </div>
     </div>
-    <div class="card" id="lameArchiveCard">
+    <div class="card hidden" id="lameArchiveCard">
       <h2>Treated &amp; Cleared</h2>
       <div id="lameArchiveTable"></div>
     </div>
@@ -165,196 +250,213 @@ input:focus,select:focus{border-color:var(--accent)}
 
   <!-- TAB 3: CALVING -->
   <div id="tab3" class="hidden">
-
-    <!-- New Moms -->
     <div class="card">
       <h2>New Moms <span id="momCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <div id="momTable"></div>
       <div class="form-row">
         <div class="field">
-          <label>Tag # (space or comma separated for batch)</label>
+          <label>Tags (space or comma separated)</label>
           <input id="momTag" placeholder="1234 1456 789" style="width:200px">
         </div>
         <div class="field"><label>Date Left Barn</label><input type="date" id="momDate"></div>
         <button class="btn" onclick="addMom()">Add</button>
       </div>
     </div>
-
-    <!-- Colostrum -->
     <div class="card">
       <h2>Colostrum Mob <span id="colCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px;font-style:italic">Sorted by days in mob. ⚠ Amber 3d · Red 5d+</p>
       <div id="colTable"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
-        <input type="number" id="colGraze" min="0" value="" onchange="updateGraze('col')" oninput="updateGraze('col')">
+        <input type="number" id="colGraze" min="0" onchange="updateGraze('col')" oninput="updateGraze('col')">
         <div class="graze-result" id="colGrazeResult">—</div>
       </div>
     </div>
-
-    <!-- Milking Herd -->
     <div class="card">
       <h2>Milking Herd <span id="milkCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <div id="milkTable"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
-        <input type="number" id="milkGraze" min="0" value="" onchange="updateGraze('milk')" oninput="updateGraze('milk')">
+        <input type="number" id="milkGraze" min="0" onchange="updateGraze('milk')" oninput="updateGraze('milk')">
         <div class="graze-result" id="milkGrazeResult">—</div>
       </div>
       <div class="form-row">
-        <div class="field">
-          <label>Add tags (batch ok)</label>
-          <input id="milkTag" placeholder="1234 1456 789" style="width:200px">
-        </div>
+        <div class="field"><label>Add tags (batch ok)</label><input id="milkTag" placeholder="1234 1456 789" style="width:200px"></div>
         <button class="btn" onclick="addToGroup('milkingHerd','milkTag')">Add</button>
       </div>
     </div>
-
-    <!-- OAD -->
     <div class="card">
       <h2>Once-a-Day (OAD) <span id="oadCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <div id="oadTable"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
-        <input type="number" id="oadGraze" min="0" value="" onchange="updateGraze('oad')" oninput="updateGraze('oad')">
+        <input type="number" id="oadGraze" min="0" onchange="updateGraze('oad')" oninput="updateGraze('oad')">
         <div class="graze-result" id="oadGrazeResult">—</div>
       </div>
       <div class="form-row">
-        <div class="field">
-          <label>Add tags (batch ok)</label>
-          <input id="oadTag" placeholder="1234 1456 789" style="width:200px">
-        </div>
+        <div class="field"><label>Add tags (batch ok)</label><input id="oadTag" placeholder="1234 1456 789" style="width:200px"></div>
         <button class="btn" onclick="addToGroup('oad','oadTag')">Add</button>
       </div>
     </div>
-
-    <!-- Peno -->
     <div class="card">
       <h2>Penicillin (Peno) <span id="penoCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <div id="penoTable"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
-        <input type="number" id="penoGraze" min="0" value="" onchange="updateGraze('peno')" oninput="updateGraze('peno')">
+        <input type="number" id="penoGraze" min="0" onchange="updateGraze('peno')" oninput="updateGraze('peno')">
         <div class="graze-result" id="penoGrazeResult">—</div>
       </div>
       <div class="form-row">
-        <div class="field">
-          <label>Add tags (batch ok)</label>
-          <input id="penoTag" placeholder="1234 1456 789" style="width:200px">
-        </div>
+        <div class="field"><label>Add tags (batch ok)</label><input id="penoTag" placeholder="1234 1456 789" style="width:200px"></div>
         <button class="btn" onclick="addToGroup('peno','penoTag')">Add</button>
       </div>
     </div>
-
   </div>
 
-  <!-- TAB 4: EXPORT / IMPORT -->
+  <!-- TAB 4: EXPORT -->
   <div id="tab4" class="hidden">
     <div class="card">
       <h2>Export</h2>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Copy your current data and paste it to Claude along with any instructions. Claude will send back an Import Code with all changes applied.</p>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Copy your current data and paste to Claude with any instructions. Claude sends back a DAIRY_IMPORT code to paste below.</p>
       <button class="btn" onclick="doExport()">Copy Export to Clipboard</button>
       <div id="exportBox" class="export-box hidden"></div>
     </div>
     <div class="card">
       <h2>Import</h2>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Paste the Import Code sent back by Claude, then tap Load. A snapshot of current data is saved automatically before import.</p>
-      <textarea id="importBox" placeholder="Paste import code here…" style="width:100%;min-height:100px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text);resize:vertical;outline:none"></textarea>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Paste the Import Code from Claude then tap Load.</p>
+      <textarea id="importBox" placeholder="Paste DAIRY_IMPORT code here…" style="width:100%;min-height:100px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text);resize:vertical;outline:none"></textarea>
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn" onclick="doImport()">Load Import Code</button>
         <span id="importStatus" style="font-family:'JetBrains Mono',monospace;font-size:.72rem"></span>
       </div>
     </div>
-    <div class="card">
-      <h2>Snapshots</h2>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Last 5 snapshots taken before each import. Tap Restore to roll back.</p>
-      <div id="snapshotList"></div>
-    </div>
   </div>
 
-  <!-- BAY MODAL -->
-  <div class="modal-overlay hidden" id="bayModal" onclick="closeBayModal(event)">
-    <div class="modal">
-      <h3 id="modalBayName">Bay</h3>
-      <input type="number" id="modalCount" min="0" inputmode="numeric">
-      <div class="modal-btns">
-        <button class="btn sec" onclick="closeBayModalDirect()">Cancel</button>
-        <button class="btn" onclick="saveBayModal()">Save</button>
-      </div>
+</div><!-- end .app -->
+</div><!-- end #appScreen -->
+
+<!-- BAY MODAL -->
+<div class="modal-overlay hidden" id="bayModal" onclick="closeBayModal(event)">
+  <div class="modal">
+    <h3 id="modalBayName">Bay</h3>
+    <input type="number" id="modalCount" min="0" inputmode="numeric">
+    <div class="modal-btns">
+      <button class="btn sec" onclick="closeBayModalDirect()">Cancel</button>
+      <button class="btn" onclick="saveBayModal()">Save</button>
     </div>
   </div>
 </div>
 
 <script>
 const BAYS = ["Bay 1","Bay 2","Bay 3","Bay 4","Bay 5","Bay 6","Penicillin Paddock"];
-const KEY = "dairy-v4";
-const SNAP_KEY = "dairy-snapshots-v4";
-const GRAZE_KEY = "dairy-graze-v4";
-
-function loadGraze() {
-  try { return JSON.parse(localStorage.getItem(GRAZE_KEY)) || {col:100, milk:128, oad:100, peno:100}; } catch(e) { return {col:100, milk:128, oad:100, peno:100}; }
-}
-function saveGraze(g) {
-  try { localStorage.setItem(GRAZE_KEY, JSON.stringify(g)); } catch(e) {}
-}
-let G = loadGraze();
 const FOOT_LABELS = {LF:"Left Front",RF:"Right Front",LR:"Left Rear",RR:"Right Rear"};
+const ALL_GROUPS = ['newMoms','colostrumMob','milkingHerd','oad','peno'];
 
-let S = load();
+let S = freshState();
+let G = {col:100, milk:128, oad:100, peno:100};
 let selectedFeet = [];
 let currentTab = 0;
+let _modalBay = null;
+let _saveTimer = null;
+let _unsubscribe = null;
 
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const d = JSON.parse(raw);
-      d.lameCows = d.lameCows || [];
-      d.lameArchive = d.lameArchive || [];
-      return d;
-    }
-  } catch(e) {}
+function freshState() {
   return {
     bays: {"Bay 1":0,"Bay 2":0,"Bay 3":0,"Bay 4":0,"Bay 5":0,"Bay 6":0,"Penicillin Paddock":0},
     treatments: [], newMoms: [], colostrumMob: [], milkingHerd: [],
-    oad: [], peno: [],
-    lameCows: [], lameArchive: []
+    oad: [], peno: [], lameCows: [], lameArchive: []
   };
 }
 
-function loadSnapshots() {
-  try { return JSON.parse(localStorage.getItem(SNAP_KEY)) || []; } catch(e) { return []; }
+// ── Auth
+function doSignIn() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '';
+  window._signInWithEmailAndPassword(window._auth, email, pass)
+    .catch(e => {
+      errEl.textContent = 'Sign in failed — check email and password';
+    });
 }
 
-function saveSnapshots(snaps) {
-  try { localStorage.setItem(SNAP_KEY, JSON.stringify(snaps)); } catch(e) {}
+function doSignOut() {
+  window._signOut(window._auth);
 }
 
-function takeSnapshot() {
-  const snaps = loadSnapshots();
-  snaps.unshift({ ts: new Date().toLocaleString(), data: JSON.stringify(S) });
-  if (snaps.length > 5) snaps.length = 5;
-  saveSnapshots(snaps);
+document.getElementById('loginPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSignIn();
+});
+
+// ── Firestore sync
+window.startFirestoreSync = function() {
+  setSyncStatus('connecting');
+
+  // Listen to graze doc
+  window._onSnapshot(window._GRAZE_DOC, snap => {
+    if (snap.exists()) G = { ...G, ...snap.data() };
+    initGraze();
+  });
+
+  // Listen to main data doc
+  _unsubscribe = window._onSnapshot(window._DATA_DOC, snap => {
+    if (snap.exists()) {
+      const d = snap.data();
+      d.treatments = d.treatments || [];
+      d.newMoms = d.newMoms || [];
+      d.colostrumMob = d.colostrumMob || [];
+      d.milkingHerd = d.milkingHerd || [];
+      d.oad = d.oad || [];
+      d.peno = d.peno || [];
+      d.lameCows = d.lameCows || [];
+      d.lameArchive = d.lameArchive || [];
+      S = d;
+    }
+    setSyncStatus('live');
+    render();
+    if (currentTab === 3) setTimeout(initGraze, 50);
+  });
+  window._unsubscribe = _unsubscribe;
+};
+
+function setSyncStatus(state) {
+  const dot = document.getElementById('syncDot');
+  const status = document.getElementById('saveStatus');
+  if (state === 'connecting') {
+    dot.className = 'sync-indicator';
+    status.textContent = 'Connecting…';
+  } else if (state === 'live') {
+    dot.className = 'sync-indicator live';
+    status.textContent = 'Live';
+  } else if (state === 'saving') {
+    dot.className = 'sync-indicator';
+    status.textContent = 'Saving…';
+  } else if (state === 'saved') {
+    dot.className = 'sync-indicator live';
+    status.textContent = 'Saved ✓';
+    setTimeout(() => { if (document.getElementById('saveStatus').textContent === 'Saved ✓') setSyncStatus('live'); }, 2000);
+  }
 }
 
-let saveTimer;
 function save() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+  setSyncStatus('saving');
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(S));
-      showStatus("Saved ✓");
-    } catch(e) { showStatus("⚠ Save failed"); }
-  }, 300);
+      await window._setDoc(window._DATA_DOC, S);
+      setSyncStatus('saved');
+    } catch(e) {
+      document.getElementById('saveStatus').textContent = '⚠ Save failed';
+    }
+  }, 600);
 }
 
-function showStatus(msg) {
-  const el = document.getElementById("saveStatus");
-  el.textContent = msg;
-  setTimeout(() => el.textContent = "", 2000);
+function saveGraze() {
+  window._setDoc(window._GRAZE_DOC, G).catch(()=>{});
 }
 
-const uid = () => Date.now() + Math.random();
+// ── Helpers
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const todayStr = () => new Date().toISOString().slice(0,10);
 const fmtDate = d => { if(!d) return "—"; const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`; };
 const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
@@ -375,6 +477,7 @@ function colAlert(dateStr) {
   return `<span class="badge green">${d}d</span>`;
 }
 
+// ── Tabs
 function showTab(n) {
   document.querySelectorAll(".tab").forEach((t,i) => t.classList.toggle("active", i===n));
   for(let i=0;i<5;i++) document.getElementById("tab"+i).classList.toggle("hidden", i!==n);
@@ -383,25 +486,25 @@ function showTab(n) {
   if (n === 3) setTimeout(initGraze, 50);
 }
 
+// ── Render
 function render() {
   renderBays();
   renderTreatments();
   renderLame();
   renderCalving();
-  renderSnapshots();
 }
 
 function renderBays() {
   const grid = document.getElementById("bayGrid");
   if (!grid) return;
   let html = BAYS.map(b => `
-    <div class="bay-cell" onclick="openBayModal('${b}')" style="cursor:pointer">
+    <div class="bay-cell" onclick="openBayModal('${b}')">
       <div class="bay-name">${b}</div>
       <div class="bay-count">${S.bays[b]||0}</div>
     </div>`).join("");
   html += `<div class="bay-cell total"><div class="bay-name">All Bays</div><div class="bay-count">${bayTotal()}</div></div>`;
   grid.innerHTML = html;
-  ["baySelect","txLoc","lameLoc"].forEach(id => {
+  ["txLoc","lameLoc"].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const cur = el.value;
@@ -412,7 +515,7 @@ function renderBays() {
 function renderTreatments() {
   const el = document.getElementById("txTable");
   if (!el) return;
-  if (S.treatments.length === 0) { el.innerHTML = `<p class="empty">No animals under treatment</p>`; return; }
+  if (!S.treatments.length) { el.innerHTML = `<p class="empty">No animals under treatment</p>`; return; }
   el.innerHTML = `<table>
     <thead><tr><th>Tag</th><th>Location</th><th>Treatment</th><th>Withhold</th><th>Status</th><th></th></tr></thead>
     <tbody>${S.treatments.map(t=>`
@@ -430,7 +533,7 @@ function renderTreatments() {
 function renderLame() {
   const el = document.getElementById("lameTable");
   if (!el) return;
-  if (S.lameCows.length === 0) { el.innerHTML = `<p class="empty">No lame cows recorded</p>`; }
+  if (!S.lameCows.length) { el.innerHTML = `<p class="empty">No lame cows recorded</p>`; }
   else el.innerHTML = `<table>
     <thead><tr><th>Tag</th><th>Location</th><th>Feet</th><th>Notes</th><th></th><th></th></tr></thead>
     <tbody>${S.lameCows.map(c=>`
@@ -447,9 +550,8 @@ function renderLame() {
   const archCard = document.getElementById("lameArchiveCard");
   const archEl = document.getElementById("lameArchiveTable");
   if (!archEl) return;
-  if (S.lameArchive.length === 0) {
-    archCard.classList.add("hidden");
-  } else {
+  if (!S.lameArchive.length) { archCard.classList.add("hidden"); }
+  else {
     archCard.classList.remove("hidden");
     archEl.innerHTML = `<table>
       <thead><tr><th>Tag</th><th>Location</th><th>Feet</th><th>Cleared</th><th></th></tr></thead>
@@ -467,11 +569,11 @@ function renderLame() {
 
 function renderCalving() {
   // New Moms
-  const momEl = document.getElementById("momTable");
   const momC = document.getElementById("momCount");
+  const momEl = document.getElementById("momTable");
   if (momC) momC.textContent = S.newMoms.length ? `— ${S.newMoms.length} cows` : "";
   if (momEl) {
-    if (S.newMoms.length === 0) { momEl.innerHTML = `<p class="empty">No new moms yet</p>`; }
+    if (!S.newMoms.length) { momEl.innerHTML = `<p class="empty">No new moms yet</p>`; }
     else momEl.innerHTML = `<table>
       <thead><tr><th>Tag</th><th>Left Barn</th><th>Days</th><th></th><th></th></tr></thead>
       <tbody>${S.newMoms.map(m=>`
@@ -485,16 +587,16 @@ function renderCalving() {
       </tbody></table>`;
   }
 
-  // Colostrum — sorted by days desc then tag asc
-  const colEl = document.getElementById("colTable");
+  // Colostrum
   const colC = document.getElementById("colCount");
+  const colEl = document.getElementById("colTable");
   if (colC) colC.textContent = S.colostrumMob.length ? `— ${S.colostrumMob.length} cows` : "";
   if (colEl) {
     const sorted = [...S.colostrumMob].sort((a,b) => {
       const dd = daysSince(b.dateEntered) - daysSince(a.dateEntered);
       return dd !== 0 ? dd : a.tag.localeCompare(b.tag, undefined, {numeric:true});
     });
-    if (sorted.length === 0) { colEl.innerHTML = `<p class="empty">Colostrum mob is empty</p>`; }
+    if (!sorted.length) { colEl.innerHTML = `<p class="empty">Colostrum mob is empty</p>`; }
     else colEl.innerHTML = `<table>
       <thead><tr><th>Tag</th><th>Entered</th><th>Days</th><th colspan="3">Move to</th><th></th></tr></thead>
       <tbody>${sorted.map(c=>`
@@ -510,19 +612,18 @@ function renderCalving() {
       </tbody></table>`;
   }
 
-  // Generic group renderer
-  renderGroup('milkingHerd', 'milkTable', 'milkCount', 'head in milking herd');
-  renderGroup('oad', 'oadTable', 'oadCount', 'once-a-day');
-  renderGroup('peno', 'penoTable', 'penoCount', 'on penicillin');
+  renderGroup('milkingHerd','milkTable','milkCount');
+  renderGroup('oad','oadTable','oadCount');
+  renderGroup('peno','penoTable','penoCount');
 }
 
-function renderGroup(key, tableId, countId, label) {
+function renderGroup(key, tableId, countId) {
   const arr = S[key] || [];
   const countEl = document.getElementById(countId);
   if (countEl) countEl.textContent = arr.length ? `— ${arr.length} cows` : "";
   const el = document.getElementById(tableId);
   if (!el) return;
-  if (arr.length === 0) { el.innerHTML = ""; return; }
+  if (!arr.length) { el.innerHTML = ""; return; }
   const sorted = [...arr].sort((a,b) => a.tag.localeCompare(b.tag, undefined, {numeric:true}));
   el.innerHTML = `<table style="margin-top:8px">
     <thead><tr><th>Tag</th><th></th></tr></thead>
@@ -534,103 +635,16 @@ function renderGroup(key, tableId, countId, label) {
     </tbody></table>`;
 }
 
-function renderSnapshots() {
-  const el = document.getElementById("snapshotList");
-  if (!el) return;
-  const snaps = loadSnapshots();
-  if (snaps.length === 0) { el.innerHTML = `<p class="empty">No snapshots yet — taken automatically before each import</p>`; return; }
-  el.innerHTML = snaps.map((s,i) => `
-    <div class="snapshot-row">
-      <span class="snapshot-time">${s.ts}</span>
-      <button class="btn sec" style="font-size:.72rem;padding:4px 10px" onclick="restoreSnapshot(${i})">Restore</button>
-    </div>`).join("");
-}
-
-// ── Lame cow foot toggle
-function toggleFoot(code) {
-  const idx = selectedFeet.indexOf(code);
-  if (idx === -1) selectedFeet.push(code); else selectedFeet.splice(idx, 1);
-  document.querySelectorAll(".foot-btn").forEach(btn => {
-    const c = btn.textContent.trim();
-    const map = {"Left Front":"LF","Right Front":"RF","Left Rear":"LR","Right Rear":"RR"};
-    btn.classList.toggle("selected", selectedFeet.includes(map[c]));
-  });
-}
-
-function addLame() {
-  const tag = document.getElementById("lameTag").value.trim();
-  const loc = document.getElementById("lameLoc").value;
-  const notes = document.getElementById("lameNotes").value.trim();
-  if (!tag || selectedFeet.length === 0) return;
-  S.lameCows.push({ id: String(uid()), tag, location: loc, feet: [...selectedFeet], notes, dateAdded: todayStr() });
-  document.getElementById("lameTag").value = "";
-  document.getElementById("lameNotes").value = "";
-  selectedFeet = [];
-  document.querySelectorAll(".foot-btn").forEach(b => b.classList.remove("selected"));
-  save(); render();
-}
-
-const pendingTreats = new Set();
-
-function treatTap(id) {
-  const btn = document.getElementById("tb-"+id);
-  if (!btn) return;
-  if (pendingTreats.has(id)) {
-    // Second tap — confirm
-    btn.classList.remove("pending");
-    btn.classList.add("confirmed");
-    btn.textContent = "✓ Done";
-    pendingTreats.delete(id);
-    setTimeout(() => {
-      const cow = S.lameCows.find(c=>c.id===id); if (!cow) return;
-      S.lameCows = S.lameCows.filter(c=>c.id!==id);
-      S.lameArchive.unshift({ ...cow, clearedDate: todayStr(), id: String(uid()) });
-      save(); render();
-    }, 400);
-  } else {
-    // First tap — pending state
-    pendingTreats.add(id);
-    btn.classList.add("pending");
-    btn.textContent = "✓ Treated?";
-    // Auto-reset after 3 seconds if not confirmed
-    setTimeout(() => {
-      if (pendingTreats.has(id)) {
-        pendingTreats.delete(id);
-        if (btn) { btn.classList.remove("pending"); btn.textContent = "Treated?"; }
-      }
-    }, 3000);
-  }
-}
-
-function clearLame(id) {
-  const cow = S.lameCows.find(c=>c.id===id); if (!cow) return;
-  S.lameCows = S.lameCows.filter(c=>c.id!==id);
-  S.lameArchive.unshift({ ...cow, clearedDate: todayStr(), id: String(uid()) });
-  save(); render();
-}
-
-function delLame(id) { S.lameCows = S.lameCows.filter(c=>c.id!==id); save(); render(); }
-function delLameArchive(id) { S.lameArchive = S.lameArchive.filter(c=>c.id!==id); save(); render(); }
-
-// ── Bays
-let _modalBay = null;
+// ── Bay modal
 function openBayModal(bay) {
   _modalBay = bay;
   document.getElementById("modalBayName").textContent = bay;
   document.getElementById("modalCount").value = S.bays[bay] || 0;
   document.getElementById("bayModal").classList.remove("hidden");
-  setTimeout(() => {
-    const inp = document.getElementById("modalCount");
-    inp.focus(); inp.select();
-  }, 50);
+  setTimeout(() => { const i = document.getElementById("modalCount"); i.focus(); i.select(); }, 50);
 }
-function closeBayModal(e) {
-  if (e.target === document.getElementById("bayModal")) closeBayModalDirect();
-}
-function closeBayModalDirect() {
-  document.getElementById("bayModal").classList.add("hidden");
-  _modalBay = null;
-}
+function closeBayModal(e) { if (e.target === document.getElementById("bayModal")) closeBayModalDirect(); }
+function closeBayModalDirect() { document.getElementById("bayModal").classList.add("hidden"); _modalBay = null; }
 function saveBayModal() {
   const n = parseInt(document.getElementById("modalCount").value);
   if (!_modalBay || isNaN(n) || n < 0) return;
@@ -638,7 +652,6 @@ function saveBayModal() {
   closeBayModalDirect();
   save(); render();
 }
-function setBayCount() {} // kept for keyboard handler compatibility
 
 // ── Treatments
 function addTreatment() {
@@ -647,18 +660,67 @@ function addTreatment() {
   const reason = document.getElementById("txReason").value.trim();
   const date = document.getElementById("txDate").value;
   if (!tag || !reason || !date) return;
-  S.treatments.push({ id: String(uid()), tag, location: loc, treatment: reason, meatWithholdDate: date });
+  S.treatments.push({ id: uid(), tag, location: loc, treatment: reason, meatWithholdDate: date });
   S.treatments.sort((a,b) => a.meatWithholdDate.localeCompare(b.meatWithholdDate));
   ["txTag","txReason","txDate"].forEach(id => document.getElementById(id).value = "");
   save(); render();
 }
 function delTx(id) { S.treatments = S.treatments.filter(t=>t.id!==id); save(); render(); }
 
+// ── Lame
+function toggleFoot(code) {
+  const idx = selectedFeet.indexOf(code);
+  if (idx === -1) selectedFeet.push(code); else selectedFeet.splice(idx,1);
+  const map = {"Left Front":"LF","Right Front":"RF","Left Rear":"LR","Right Rear":"RR"};
+  document.querySelectorAll(".foot-btn").forEach(btn => {
+    btn.classList.toggle("selected", selectedFeet.includes(map[btn.textContent.trim()]));
+  });
+}
+
+function addLame() {
+  const tag = document.getElementById("lameTag").value.trim();
+  const loc = document.getElementById("lameLoc").value;
+  const notes = document.getElementById("lameNotes").value.trim();
+  if (!tag || !selectedFeet.length) return;
+  S.lameCows.push({ id: uid(), tag, location: loc, feet: [...selectedFeet], notes, dateAdded: todayStr() });
+  document.getElementById("lameTag").value = "";
+  document.getElementById("lameNotes").value = "";
+  selectedFeet = [];
+  document.querySelectorAll(".foot-btn").forEach(b => b.classList.remove("selected"));
+  save(); render();
+}
+
+const pendingTreats = new Set();
+function treatTap(id) {
+  const btn = document.getElementById("tb-"+id);
+  if (!btn) return;
+  if (pendingTreats.has(id)) {
+    btn.classList.remove("pending"); btn.classList.add("confirmed"); btn.textContent = "✓ Done";
+    pendingTreats.delete(id);
+    setTimeout(() => {
+      const cow = S.lameCows.find(c=>c.id===id); if (!cow) return;
+      S.lameCows = S.lameCows.filter(c=>c.id!==id);
+      S.lameArchive.unshift({ ...cow, clearedDate: todayStr(), id: uid() });
+      save(); render();
+    }, 400);
+  } else {
+    pendingTreats.add(id);
+    btn.classList.add("pending"); btn.textContent = "✓ Treated?";
+    setTimeout(() => {
+      if (pendingTreats.has(id)) {
+        pendingTreats.delete(id);
+        if (btn) { btn.classList.remove("pending"); btn.textContent = "Treated?"; }
+      }
+    }, 3000);
+  }
+}
+function delLame(id) { S.lameCows = S.lameCows.filter(c=>c.id!==id); save(); render(); }
+function delLameArchive(id) { S.lameArchive = S.lameArchive.filter(c=>c.id!==id); save(); render(); }
+
 // ── Calving
-const ALL_GROUPS = ['newMoms','colostrumMob','milkingHerd','oad','peno'];
+function parseTags(raw) { return raw.split(/[\s,]+/).map(t=>t.trim()).filter(t=>t.length>0); }
 
 function removeDuplicates(tag, excludeGroup) {
-  // Remove tag from all groups except the one we're adding to
   ALL_GROUPS.forEach(g => {
     if (g === excludeGroup) return;
     if (g === 'newMoms') S.newMoms = S.newMoms.filter(x=>x.tag!==tag);
@@ -667,91 +729,90 @@ function removeDuplicates(tag, excludeGroup) {
   });
 }
 
-function parseTags(raw) {
-  return raw.split(/[\s,]+/).map(t=>t.trim()).filter(t=>t.length>0);
-}
-
 function addMom() {
   const raw = document.getElementById("momTag").value.trim();
   const date = document.getElementById("momDate").value || todayStr();
   if (!raw) return;
-  parseTags(raw).forEach(tag => {
-    removeDuplicates(tag, 'newMoms');
-    S.newMoms.push({ id: String(uid()), tag, dateLeftBarn: date });
-  });
+  parseTags(raw).forEach(tag => { removeDuplicates(tag,'newMoms'); S.newMoms.push({ id: uid(), tag, dateLeftBarn: date }); });
   document.getElementById("momTag").value = "";
   save(); render();
 }
-
 function delMom(id) { S.newMoms = S.newMoms.filter(m=>m.id!==id); save(); render(); }
-
 function momToCol(id) {
   const m = S.newMoms.find(x=>x.id===id); if (!m) return;
-  removeDuplicates(m.tag, 'colostrumMob');
+  removeDuplicates(m.tag,'colostrumMob');
   S.newMoms = S.newMoms.filter(x=>x.id!==id);
-  S.colostrumMob.push({ id: String(uid()), tag: m.tag, dateEntered: todayStr() });
+  S.colostrumMob.push({ id: uid(), tag: m.tag, dateEntered: todayStr() });
   save(); render();
 }
-
 function delCol(id) { S.colostrumMob = S.colostrumMob.filter(c=>c.id!==id); save(); render(); }
-
-function colExit(id, destGroup) {
+function colExit(id, dest) {
   const c = S.colostrumMob.find(x=>x.id===id); if (!c) return;
   S.colostrumMob = S.colostrumMob.filter(x=>x.id!==id);
-  if (!S[destGroup]) S[destGroup] = [];
-  S[destGroup].push({ id: String(uid()), tag: c.tag });
+  if (!S[dest]) S[dest] = [];
+  S[dest].push({ id: uid(), tag: c.tag });
   save(); render();
 }
-
 function addToGroup(group, inputId) {
   const raw = document.getElementById(inputId).value.trim();
   if (!raw) return;
   if (!S[group]) S[group] = [];
-  parseTags(raw).forEach(tag => {
-    removeDuplicates(tag, group);
-    S[group].push({ id: String(uid()), tag });
-  });
+  parseTags(raw).forEach(tag => { removeDuplicates(tag, group); S[group].push({ id: uid(), tag }); });
   document.getElementById(inputId).value = "";
   save(); render();
 }
+function delFromGroup(group, id) { if (S[group]) { S[group] = S[group].filter(c=>c.id!==id); save(); render(); } }
 
-function delFromGroup(group, id) {
-  if (!S[group]) return;
-  S[group] = S[group].filter(c=>c.id!==id);
-  save(); render();
+// ── Grazing calculator
+function updateGraze(mob) {
+  const idMap = {col:'colGraze',milk:'milkGraze',oad:'oadGraze',peno:'penoGraze'};
+  const resMap = {col:'colGrazeResult',milk:'milkGrazeResult',oad:'oadGrazeResult',peno:'penoGrazeResult'};
+  const countMap = {col:S.colostrumMob.length, milk:S.milkingHerd.length, oad:(S.oad||[]).length, peno:(S.peno||[]).length};
+  const input = document.getElementById(idMap[mob]);
+  const resultEl = document.getElementById(resMap[mob]);
+  if (!input || !resultEl) return;
+  const sqm = parseFloat(input.value);
+  const count = countMap[mob];
+  G[mob] = sqm;
+  saveGraze();
+  if (!sqm || count === 0) { resultEl.innerHTML = '—'; return; }
+  const total = sqm * count;
+  const ha = (total / 10000).toFixed(2);
+  resultEl.innerHTML = `${total.toLocaleString()} m²<span>= ${ha} ha for ${count} cows</span>`;
 }
 
-// legacy stubs
-function addToMilking() { addToGroup('milkingHerd','milkTag'); }
-function delMilk(id) { delFromGroup('milkingHerd',id); }
+function initGraze() {
+  const fields = {col:'colGraze',milk:'milkGraze',oad:'oadGraze',peno:'penoGraze'};
+  Object.entries(fields).forEach(([k,id]) => { const el = document.getElementById(id); if (el) el.value = G[k] || ''; });
+  ['col','milk','oad','peno'].forEach(k => updateGraze(k));
+}
 
 // ── Export
 function doExport() {
-  const lameSummary = S.lameCows.length === 0 ? "(none)" :
+  const lameSummary = !S.lameCows.length ? "(none)" :
     S.lameCows.map(c=>`Tag ${c.tag} | ${c.location} | ${c.feet.map(f=>FOOT_LABELS[f]).join(", ")}${c.notes?" | "+c.notes:""}`).join("\n");
   const summary = [
     `DAIRY ASSISTANT EXPORT — ${new Date().toLocaleString()}`,
     "", "=== BAY TOTALS ===",
     ...BAYS.map(b=>`${b}: ${S.bays[b]||0}`),
     `TOTAL: ${bayTotal()}`,
-    "", "=== TREATMENTS ===",
-    S.treatments.length===0?"(none)":S.treatments.map(t=>`Tag ${t.tag} | ${t.location} | ${t.treatment} | Clear: ${fmtDate(t.meatWithholdDate)}`).join("\n"),
-    "", "=== LAME COWS ===",
-    lameSummary,
+    "", "=== DRY COW TREATMENTS ===",
+    !S.treatments.length?"(none)":S.treatments.map(t=>`Tag ${t.tag} | ${t.location} | ${t.treatment} | Clear: ${fmtDate(t.meatWithholdDate)}`).join("\n"),
+    "", "=== LAME COWS ===", lameSummary,
     "", "=== NEW MOMS ===",
-    S.newMoms.length===0?"(none)":S.newMoms.map(m=>`Tag ${m.tag} | Left barn: ${fmtDate(m.dateLeftBarn)}`).join("\n"),
+    !S.newMoms.length?"(none)":S.newMoms.map(m=>`Tag ${m.tag} | Left barn: ${fmtDate(m.dateLeftBarn)}`).join("\n"),
     "", "=== COLOSTRUM MOB ===",
-    S.colostrumMob.length===0?"(none)":S.colostrumMob.map(c=>`Tag ${c.tag} | Entered: ${fmtDate(c.dateEntered)} | Days: ${daysSince(c.dateEntered)}`).join("\n"),
+    !S.colostrumMob.length?"(none)":S.colostrumMob.map(c=>`Tag ${c.tag} | Entered: ${fmtDate(c.dateEntered)} | Days: ${daysSince(c.dateEntered)}`).join("\n"),
     "", "=== MILKING HERD ===",
     `Total: ${S.milkingHerd.length}`,
-    S.milkingHerd.length===0?"(none)":S.milkingHerd.map(c=>`Tag ${c.tag}`).join(", "),
+    !S.milkingHerd.length?"(none)":S.milkingHerd.map(c=>`Tag ${c.tag}`).join(", "),
     "", "=== OAD ===",
     `Total: ${(S.oad||[]).length}`,
-    (S.oad||[]).length===0?"(none)":(S.oad||[]).map(c=>`Tag ${c.tag}`).join(", "),
+    !(S.oad||[]).length?"(none)":(S.oad||[]).map(c=>`Tag ${c.tag}`).join(", "),
     "", "=== PENO ===",
     `Total: ${(S.peno||[]).length}`,
-    (S.peno||[]).length===0?"(none)":(S.peno||[]).map(c=>`Tag ${c.tag}`).join(", "),
-    "", "=== IMPORT CODE (send this to Claude) ===",
+    !(S.peno||[]).length?"(none)":(S.peno||[]).map(c=>`Tag ${c.tag}`).join(", "),
+    "", "=== IMPORT CODE ===",
     "DAIRY_IMPORT:" + JSON.stringify(S),
   ].join("\n");
   const box = document.getElementById("exportBox");
@@ -764,102 +825,38 @@ function doExport() {
 function doImport() {
   const raw = document.getElementById("importBox").value.trim();
   const status = document.getElementById("importStatus");
-  if (!raw) {
-    status.style.color = "var(--red)";
-    status.textContent = "✕ Nothing pasted";
-    setTimeout(() => status.textContent = "", 3000);
-    return;
-  }
+  if (!raw) { status.style.color="var(--red)"; status.textContent="✕ Nothing pasted"; setTimeout(()=>status.textContent="",3000); return; }
   try {
     let jsonStr = raw;
     const marker = raw.indexOf("DAIRY_IMPORT:");
-    if (marker !== -1) jsonStr = raw.slice(marker + 13).trim();
-    const start = jsonStr.indexOf("{");
-    const end = jsonStr.lastIndexOf("}");
-    if (start === -1 || end === -1) throw new Error("No JSON found");
-    jsonStr = jsonStr.slice(start, end + 1);
-    const imported = JSON.parse(jsonStr);
-    if (!imported.bays) throw new Error("Invalid data");
-    imported.treatments = imported.treatments || [];
-    imported.newMoms = imported.newMoms || [];
-    imported.colostrumMob = imported.colostrumMob || [];
-    imported.milkingHerd = imported.milkingHerd || [];
-    imported.oad = imported.oad || [];
-    imported.peno = imported.peno || [];
-    imported.lameCows = imported.lameCows || [];
-    imported.lameArchive = imported.lameArchive || [];
-    takeSnapshot();
+    if (marker !== -1) jsonStr = raw.slice(marker+13).trim();
+    const start = jsonStr.indexOf("{"); const end = jsonStr.lastIndexOf("}");
+    if (start===-1||end===-1) throw new Error();
+    const imported = JSON.parse(jsonStr.slice(start,end+1));
+    if (!imported.bays) throw new Error();
+    ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive']
+      .forEach(k => { imported[k] = imported[k] || []; });
     S = imported;
     save();
-    render();
     document.getElementById("importBox").value = "";
-    status.style.color = "var(--green)";
-    status.textContent = "✓ Imported — snapshot saved";
-    setTimeout(() => status.textContent = "", 3000);
+    status.style.color="var(--green)"; status.textContent="✓ Imported";
+    setTimeout(()=>status.textContent="",3000);
   } catch(e) {
-    status.style.color = "var(--red)";
-    status.textContent = "✕ Invalid — check and try again";
-    setTimeout(() => status.textContent = "", 4000);
+    status.style.color="var(--red)"; status.textContent="✕ Invalid — check and try again";
+    setTimeout(()=>status.textContent="",4000);
   }
-}
-
-// ── Restore snapshot
-function restoreSnapshot(i) {
-  const snaps = loadSnapshots();
-  if (!snaps[i]) return;
-  if (!confirm("Restore this snapshot? Current data will be replaced.")) return;
-  try {
-    S = JSON.parse(snaps[i].data);
-    save();
-    render();
-    showStatus("Snapshot restored ✓");
-  } catch(e) { showStatus("Restore failed"); }
-}
-
-// ── Grazing calculator
-function updateGraze(mob) {
-  const idMap = {col:'colGraze', milk:'milkGraze', oad:'oadGraze', peno:'penoGraze'};
-  const resMap = {col:'colGrazeResult', milk:'milkGrazeResult', oad:'oadGrazeResult', peno:'penoGrazeResult'};
-  const countMap = {col: S.colostrumMob.length, milk: S.milkingHerd.length, oad: (S.oad||[]).length, peno: (S.peno||[]).length};
-  const input = document.getElementById(idMap[mob]);
-  const resultEl = document.getElementById(resMap[mob]);
-  if (!input || !resultEl) return;
-  const sqm = parseFloat(input.value);
-  const count = countMap[mob];
-  G[mob] = sqm;
-  saveGraze(G);
-  if (!sqm || count === 0) { resultEl.innerHTML = '—'; return; }
-  const total = sqm * count;
-  const ha = (total / 10000).toFixed(2);
-  resultEl.innerHTML = `${total.toLocaleString()} m²<span>= ${ha} ha for ${count} cows</span>`;
-}
-
-function initGraze() {
-  const fields = {col:'colGraze', milk:'milkGraze', oad:'oadGraze', peno:'penoGraze'};
-  Object.entries(fields).forEach(([k,id]) => {
-    const el = document.getElementById(id);
-    if (el) el.value = G[k] || '';
-  });
-  ['col','milk','oad','peno'].forEach(k => updateGraze(k));
 }
 
 // ── Keyboard
 document.addEventListener("keydown", e => {
-  if (e.key === "Enter" && _modalBay) { saveBayModal(); return; }
-  if (e.key === "Escape" && _modalBay) { closeBayModalDirect(); return; }
+  if (e.key==="Enter" && _modalBay) { saveBayModal(); return; }
+  if (e.key==="Escape" && _modalBay) { closeBayModalDirect(); return; }
   if (e.key !== "Enter") return;
-  if (currentTab === 0) setBayCount();
-  else if (currentTab === 1) addTreatment();
-  else if (currentTab === 3) {
-    const milkFocused = document.activeElement === document.getElementById("milkTag");
-    if (milkFocused) addToMilking(); else addMom();
-  }
+  if (currentTab===1) addTreatment();
 });
 
 // ── Init
 document.getElementById("momDate").value = todayStr();
-render();
-initGraze();
 </script>
 </body>
 </html>
