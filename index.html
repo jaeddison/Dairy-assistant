@@ -336,7 +336,7 @@ input:focus,select:focus{border-color:var(--accent)}
 </div><!-- end #appScreen -->
 
 <!-- BAY MODAL -->
-<div class="modal-overlay hidden" id="bayModal" onclick="closeBayModal(event)">
+<div class="modal-overlay hidden" id="bayModal" onclick="closeBayModal(event)" style="display:none">
   <div class="modal">
     <h3 id="modalBayName">Bay</h3>
     <input type="number" id="modalCount" min="0" inputmode="numeric">
@@ -640,11 +640,11 @@ function openBayModal(bay) {
   _modalBay = bay;
   document.getElementById("modalBayName").textContent = bay;
   document.getElementById("modalCount").value = S.bays[bay] || 0;
-  document.getElementById("bayModal").classList.remove("hidden");
+  const bm = document.getElementById("bayModal"); bm.classList.remove("hidden"); bm.style.display="flex";
   setTimeout(() => { const i = document.getElementById("modalCount"); i.focus(); i.select(); }, 50);
 }
 function closeBayModal(e) { if (e.target === document.getElementById("bayModal")) closeBayModalDirect(); }
-function closeBayModalDirect() { document.getElementById("bayModal").classList.add("hidden"); _modalBay = null; }
+function closeBayModalDirect() { const m = document.getElementById("bayModal"); m.classList.add("hidden"); m.style.display="none"; _modalBay = null; }
 function saveBayModal() {
   const n = parseInt(document.getElementById("modalCount").value);
   if (!_modalBay || isNaN(n) || n < 0) return;
