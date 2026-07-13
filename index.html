@@ -359,6 +359,7 @@ let currentTab = 0;
 let _modalBay = null;
 let _saveTimer = null;
 let _unsubscribe = null;
+let _receivingSnapshot = false;  // blocks saves during incoming snapshot processing
 
 function freshState() {
   return {
@@ -394,27 +395,27 @@ window.startFirestoreSync = function() {
 
   // Listen to graze doc
   window._onSnapshot(window._GRAZE_DOC, snap => {
-    if (snap.exists()) G = { ...G, ...snap.data() };
-    initGraze();
+    if (snap.exists()) {
+      _receivingSnapshot = true;
+      G = { ...G, ...snap.data() };
+      initGraze();
+      _receivingSnapshot = false;
+    }
   });
 
   // Listen to main data doc
   _unsubscribe = window._onSnapshot(window._DATA_DOC, snap => {
+    _receivingSnapshot = true;
     if (snap.exists()) {
       const d = snap.data();
-      d.treatments = d.treatments || [];
-      d.newMoms = d.newMoms || [];
-      d.colostrumMob = d.colostrumMob || [];
-      d.milkingHerd = d.milkingHerd || [];
-      d.oad = d.oad || [];
-      d.peno = d.peno || [];
-      d.lameCows = d.lameCows || [];
-      d.lameArchive = d.lameArchive || [];
+      ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive']
+        .forEach(k => { d[k] = d[k] || []; });
       S = d;
     }
     setSyncStatus('live');
     render();
-    if (currentTab === 3) setTimeout(initGraze, 50);
+    if (currentTab === 3) setTimeout(() => { _receivingSnapshot = true; initGraze(); _receivingSnapshot = false; }, 50);
+    _receivingSnapshot = false;
   });
   window._unsubscribe = _unsubscribe;
 };
@@ -439,9 +440,11 @@ function setSyncStatus(state) {
 }
 
 function save() {
+  if (_receivingSnapshot) return;  // never write back during an incoming snapshot
   setSyncStatus('saving');
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(async () => {
+    if (_receivingSnapshot) return;
     try {
       await window._setDoc(window._DATA_DOC, S);
       setSyncStatus('saved');
@@ -452,6 +455,7 @@ function save() {
 }
 
 function saveGraze() {
+  if (_receivingSnapshot) return;  // never write back during an incoming snapshot
   window._setDoc(window._GRAZE_DOC, G).catch(()=>{});
 }
 
