@@ -1,6 +1,6 @@
 # 🐄 DA — Dairy Assistant
 
-A mobile-first farm management app for D1, Driffield Farming Ltd. Runs in the browser, backed by Firebase for real-time cloud sync across authenticated users.
+A mobile-first farm management app. Runs in the browser, backed by Firebase for real-time cloud sync across authenticated users.
 
 **Live app:** [jaeddison.github.io/Dairy-assistant](https://jaeddison.github.io/Dairy-assistant/)
 
