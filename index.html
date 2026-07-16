@@ -93,7 +93,7 @@ body{background:var(--bg);font-family:'Libre Baskerville',Georgia,serif;color:va
 .signout-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:3px 8px;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);cursor:pointer}
 .signout-btn:active{color:var(--red);border-color:var(--red)}
 .tabs{display:flex;margin-bottom:18px;border-bottom:2px solid var(--border)}
-.tab{background:none;border:none;cursor:pointer;font-family:'Libre Baskerville',serif;font-size:.75rem;color:var(--muted);padding:8px 0 10px;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;flex:1;text-align:center}
+.tab{background:none;border:none;cursor:pointer;font-family:'Libre Baskerville',serif;font-size:.68rem;color:var(--muted);padding:8px 4px 10px;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;flex:1;text-align:center;min-width:0}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
 .tab:hover:not(.active){color:var(--text)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px;margin-bottom:14px}
@@ -259,18 +259,6 @@ input:focus,select:focus{border-color:var(--accent)}
       <div id="watchTable"></div>
       <div class="form-row">
         <div class="field">
-          <label>Tags (batch ok)</label>
-          <input id="watchTag" placeholder="1234 1456 789" style="width:180px">
-        </div>
-        <div class="field">
-          <label>Status</label>
-          <div style="display:flex;gap:6px;margin-top:2px;flex-wrap:wrap">
-            <button class="foot-btn" id="ws-Calving" onclick="pickWatchStatus('Calving')">Calving</button>
-            <button class="foot-btn" id="ws-Close" onclick="pickWatchStatus('Close')">Close</button>
-            <button class="foot-btn" id="ws-Other" onclick="pickWatchStatus('Other')">Other</button>
-          </div>
-        </div>
-        <div class="field">
           <label>Bay — tap to add</label>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
             <button class="foot-btn" id="wb-1" onclick="addToWatchBay('Bay 1')">1</button>
@@ -282,15 +270,62 @@ input:focus,select:focus{border-color:var(--accent)}
             <button class="foot-btn" id="wb-P" onclick="addToWatchBay('Penicillin Paddock')">P</button>
           </div>
         </div>
+        <div class="field">
+          <label>Status</label>
+          <div style="display:flex;gap:6px;margin-top:2px;flex-wrap:wrap">
+            <button class="foot-btn" id="ws-Calving" onclick="pickWatchStatus('Calving')">Calving</button>
+            <button class="foot-btn" id="ws-Close" onclick="pickWatchStatus('Close')">Close</button>
+            <button class="foot-btn" id="ws-Other" onclick="pickWatchStatus('Other')">Other</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Tag #</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="watchTag" placeholder="1234" style="width:90px" inputmode="numeric" pattern="[0-9]*" type="text" autocomplete="off">
+            <button class="btn" onclick="submitWatch()" style="align-self:auto;padding:7px 12px">Add</button>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Calved List -->
     <div class="card">
       <h2>Calved <span id="calvedCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-      <p style="font-size:.75rem;color:var(--muted);margin-bottom:12px;font-style:italic">Record calf details then move cow to Fresh Cows.</p>
+      <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px;font-style:italic">Record calf details then move cow to Fresh Cows.</p>
       <div id="calvedTable"></div>
-      <div style="margin-top:14px" id="calvedClearBtn"></div>
+      <div style="margin-top:10px" id="calvedClearBtn"></div>
+      <!-- Direct entry -->
+      <div class="form-row">
+        <div class="field">
+          <label>Bay</label>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">
+            <button class="foot-btn" id="db-1" onclick="pickDirectBay('Bay 1')">1</button>
+            <button class="foot-btn" id="db-2" onclick="pickDirectBay('Bay 2')">2</button>
+            <button class="foot-btn" id="db-3" onclick="pickDirectBay('Bay 3')">3</button>
+            <button class="foot-btn" id="db-4" onclick="pickDirectBay('Bay 4')">4</button>
+            <button class="foot-btn" id="db-5" onclick="pickDirectBay('Bay 5')">5</button>
+            <button class="foot-btn" id="db-6" onclick="pickDirectBay('Bay 6')">6</button>
+            <button class="foot-btn" id="db-P" onclick="pickDirectBay('Penicillin Paddock')">P</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="directCalvedDate">
+        </div>
+        <div class="field">
+          <label>Tag #</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="directCalvedTag" placeholder="1234" style="width:90px" inputmode="numeric" pattern="[0-9]*" type="text" autocomplete="off">
+            <button class="btn" onclick="addDirectCalved()" style="align-self:auto;padding:7px 12px">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calving History -->
+    <div class="card">
+      <h2>Calving History</h2>
+      <div id="calvingHistory"></div>
     </div>
 
   </div>
@@ -509,7 +544,17 @@ function saveGraze() {
 
 // ── Helpers
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => {
+  // Use NZ local date, not UTC
+  const nz = new Date().toLocaleDateString('en-CA', {timeZone: 'Pacific/Auckland'});
+  return nz; // returns YYYY-MM-DD
+};
+const fmtDayHeader = (dateStr) => {
+  const [y,m,d] = dateStr.split('-');
+  const dt = new Date(dateStr+'T12:00:00');
+  const dayName = dt.toLocaleDateString('en-NZ', {weekday:'short', timeZone:'Pacific/Auckland'});
+  return `${dayName} ${parseInt(d)} ${dt.toLocaleDateString('en-NZ',{month:'short',timeZone:'Pacific/Auckland'})}`;
+};
 const fmtDate = d => { if(!d) return "—"; const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`; };
 const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
 const bayTotal = () => Object.values(S.bays).reduce((a,b)=>a+b,0);
@@ -631,24 +676,29 @@ function pickWatchStatus(s) {
   });
 }
 
+let _watchBay = null;
 function addToWatchBay(bay) {
-  const raw = document.getElementById('watchTag').value.trim();
-  if (!raw || !_watchStatus) { 
-    // flash the missing field
-    if (!raw) document.getElementById('watchTag').style.borderColor = 'var(--red)';
-    if (!_watchStatus) ['Calving','Close','Other'].forEach(x => { const b = document.getElementById('ws-'+x); if(b) b.style.borderColor='var(--red)'; });
-    setTimeout(() => {
-      document.getElementById('watchTag').style.borderColor = '';
-      ['Calving','Close','Other'].forEach(x => { const b = document.getElementById('ws-'+x); if(b) b.style.borderColor=''; });
-    }, 1200);
-    return;
-  }
-  parseTags(raw).forEach(tag => {
-    S.watchList = S.watchList.filter(w => w.tag !== tag);
-    S.watchList.push({ id: uid(), tag, status: _watchStatus, location: bay, dateAdded: todayStr() });
+  _watchBay = bay;
+  ['1','2','3','4','5','6','P'].forEach(b => {
+    const btn = document.getElementById('wb-'+b);
+    if (btn) btn.classList.toggle('selected', bay === ('Bay '+b) || (b==='P' && bay==='Penicillin Paddock'));
   });
+  setTimeout(() => { const i = document.getElementById('watchTag'); if(i) i.focus(); }, 30);
+}
+
+function submitWatch() {
+  const raw = document.getElementById('watchTag').value.trim();
+  if (!raw) { document.getElementById('watchTag').style.borderColor='var(--red)'; setTimeout(()=>document.getElementById('watchTag').style.borderColor='',1200); return; }
+  if (!_watchStatus) { ['Calving','Close','Other'].forEach(x => { const b=document.getElementById('ws-'+x); if(b) b.style.borderColor='var(--red)'; }); setTimeout(()=>['Calving','Close','Other'].forEach(x=>{const b=document.getElementById('ws-'+x);if(b)b.style.borderColor='';}),1200); return; }
+  if (!_watchBay) { return; }
+  const tag = raw.trim();
+  if (tag) {
+    S.watchList = S.watchList.filter(w => w.tag !== tag);
+    S.watchList.push({ id: uid(), tag, status: _watchStatus, location: _watchBay, dateAdded: todayStr() });
+  }
   document.getElementById('watchTag').value = '';
   save(); renderCalvingWatch();
+  setTimeout(() => { const i = document.getElementById('watchTag'); if(i) i.focus(); }, 80);
 }
 
 function addToWatch() {
@@ -658,8 +708,29 @@ function addToWatch() {
 function moveToCalved(id) {
   const cow = S.watchList.find(w => w.id === id); if (!cow) return;
   S.watchList = S.watchList.filter(w => w.id !== id);
-  S.calvedList.push({ id: uid(), tag: cow.tag, dateCalved: todayStr(), sex: null, calfType: null, keeperTag: null, movedToFresh: false });
+  S.calvedList.push({ id: uid(), tag: cow.tag, dateCalved: todayStr(), bay: cow.location || null, sex: null, calfType: null, keeperTag: null, movedToFresh: false });
   save(); renderCalvingWatch();
+}
+
+let _directBay = null;
+function pickDirectBay(bay) {
+  _directBay = bay;
+  ['1','2','3','4','5','6','P'].forEach(b => {
+    const btn = document.getElementById('db-'+b);
+    if (btn) btn.classList.toggle('selected', bay === ('Bay '+b) || (b==='P' && bay==='Penicillin Paddock'));
+  });
+  setTimeout(() => { const i = document.getElementById('directCalvedTag'); if(i) i.focus(); }, 30);
+}
+
+function addDirectCalved() {
+  const raw = document.getElementById('directCalvedTag').value.trim();
+  const date = document.getElementById('directCalvedDate').value || todayStr();
+  if (!raw) return;
+  S.calvedList.push({ id: uid(), tag: raw, dateCalved: date, bay: _directBay, sex: null, calfType: null, keeperTag: null, movedToFresh: false });
+  document.getElementById('directCalvedTag').value = '';
+  save(); renderCalvingWatch();
+  // Keep bay selected, refocus for next entry
+  setTimeout(() => { const i = document.getElementById('directCalvedTag'); if(i) i.focus(); }, 80);
 }
 
 function removeFromWatch(id) {
@@ -758,12 +829,19 @@ function renderCalvingWatch() {
   if (calvedC) calvedC.textContent = S.calvedList.length ? `— ${S.calvedList.length} cows` : '';
 
   if (calvedEl) {
-    if (!S.calvedList.length) { calvedEl.innerHTML = `<p class="empty">No calved cows yet</p>`; }
+    // Only show today's unfinished entries in the active calved section
+    const today = todayStr();
+    const activeCows = S.calvedList.filter(c => c.dateCalved === today || !c.movedToFresh && !c.sex);
+    // Actually show all that haven't been fully processed or are today
+    const pendingCows = S.calvedList.filter(c => !c.movedToFresh || c.dateCalved === today);
+    
+    if (!pendingCows.length) { calvedEl.innerHTML = `<p class="empty">No calved cows to process</p>`; }
     else {
       const availTags = [];
       for (let t = 1; t <= 350; t++) { if (!S.usedKeeperTags.includes(t)) availTags.push(t); }
 
-      calvedEl.innerHTML = S.calvedList.map(c => {
+      calvedEl.innerHTML = pendingCows.map(c => {
+        const bayLabel = c.bay ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 5px;margin-left:4px">${c.bay==='Penicillin Paddock'?'P':c.bay.replace('Bay ','')}</span>` : '';
         const sexBtns = `
           <button class="foot-btn${c.sex==='H'?' selected':''}" onclick="setCalvedSex('${c.id}','H')">H</button>
           <button class="foot-btn${c.sex==='B'?' selected':''}" onclick="setCalvedSex('${c.id}','B')">B</button>`;
@@ -799,7 +877,7 @@ function renderCalvingWatch() {
 
         return `<div style="border:1px solid var(--border);border-radius:4px;padding:10px 12px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="tag">${c.tag}</span>
+            <div><span class="tag">${c.tag}</span>${bayLabel}</div>
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-size:.68rem;color:var(--muted);font-family:'JetBrains Mono',monospace">${fmtDate(c.dateCalved)}</span>
               <button class="del" onclick="removeFromCalved('${c.id}')">✕</button>
@@ -819,6 +897,69 @@ function renderCalvingWatch() {
       ? `<button class="btn sec" onclick="clearCalvedList()">Clear calved list</button>`
       : '';
   }
+
+  // Set direct entry date default
+  const dcd = document.getElementById('directCalvedDate');
+  if (dcd && !dcd.value) dcd.value = todayStr();
+
+  // History
+  renderCalvingHistory();
+}
+
+function renderCalvingHistory() {
+  const el = document.getElementById('calvingHistory');
+  if (!el) return;
+  if (!S.calvedList.length) { el.innerHTML = `<p class="empty">No calving records yet</p>`; return; }
+
+  // Group by date
+  const groups = {};
+  S.calvedList.forEach(c => {
+    if (!groups[c.dateCalved]) groups[c.dateCalved] = [];
+    groups[c.dateCalved].push(c);
+  });
+
+  // Sort dates descending
+  const dates = Object.keys(groups).sort((a,b) => b.localeCompare(a));
+
+  el.innerHTML = dates.map(date => {
+    const cows = groups[date];
+    const keepers = cows.filter(c => c.calfType === 'Keeper').length;
+    const bobbies = cows.filter(c => c.calfType === 'Bobby').length;
+    const herefords = cows.filter(c => c.calfType === 'Hereford').length;
+    const unknown = cows.filter(c => !c.calfType).length;
+
+    let summaryParts = [];
+    if (keepers) summaryParts.push(`${keepers}K`);
+    if (bobbies) summaryParts.push(`${bobbies}B`);
+    if (herefords) summaryParts.push(`${herefords}HF`);
+    if (unknown) summaryParts.push(`${unknown}?`);
+    const summary = summaryParts.join(' · ');
+
+    const rows = cows.map(c => {
+      const bayLabel = c.bay ? (c.bay === 'Penicillin Paddock' ? 'P' : c.bay.replace('Bay ','')) : '?';
+      const typeLabel = c.calfType || '?';
+      const sexLabel = c.sex || '?';
+      const keeperTagLabel = c.keeperTag ? ` #${c.keeperTag}` : '';
+      return `<tr>
+        <td><span class="tag" style="font-size:.8rem">${c.tag}</span></td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">Bay ${bayLabel}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">${sexLabel} · ${typeLabel}${keeperTagLabel}</td>
+      </tr>`;
+    }).join('');
+
+    return `<details style="border:1px solid var(--border);border-radius:3px;margin-bottom:6px">
+      <summary style="padding:10px 12px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:.75rem;font-weight:600">${fmtDayHeader(date)}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted)">${cows.length} cows · ${summary}</span>
+      </summary>
+      <div style="padding:0 12px 12px">
+        <table style="margin-top:8px">
+          <thead><tr><th>Tag</th><th>Bay</th><th>Calf</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join('');
 }
 
 function renderCalving() {
