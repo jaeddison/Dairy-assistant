@@ -16,7 +16,7 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, onSnapshot, setDoc, getDoc }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -32,6 +32,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch(e => console.warn('Persistence error:', e));
 const db = getFirestore(app);
 const DATA_DOC = doc(db, 'dairy', 'D1');
 const GRAZE_DOC = doc(db, 'dairy', 'D1-graze');
@@ -412,6 +413,19 @@ input:focus,select:focus{border-color:var(--accent)}
         <span id="importStatus" style="font-family:'JetBrains Mono',monospace;font-size:.72rem"></span>
       </div>
     </div>
+
+    <div class="card" style="border-color:var(--border);opacity:.85">
+      <h2 style="color:var(--muted)">Remove Cow from System</h2>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Removes a cow from all active groups and records her death. Her calving history entry is retained with a died marker.</p>
+      <div class="form-row" style="border-top:none;padding-top:0;margin-top:0">
+        <div class="field"><label>Cow Tag #</label><input id="removeCowTag" placeholder="1234" style="width:90px" inputmode="numeric"></div>
+        <div class="field"><label>Date</label><input type="date" id="removeCowDate"></div>
+        <div class="field"><label>Notes (100 chars)</label><input id="removeCowNotes" placeholder="e.g. Found dead in bay 2" maxlength="100" style="width:200px"></div>
+        <button class="btn" style="background:var(--red)" onclick="removeCow()">Remove &amp; Record Death</button>
+      </div>
+      <div id="removeCowStatus" style="font-family:'JetBrains Mono',monospace;font-size:.72rem;margin-top:8px;min-height:16px"></div>
+      <div id="cowDeathList" style="margin-top:14px"></div>
+    </div>
   </div>
 
 </div><!-- end .app -->
@@ -448,7 +462,7 @@ function freshState() {
     bays: {"Bay 1":0,"Bay 2":0,"Bay 3":0,"Bay 4":0,"Bay 5":0,"Bay 6":0,"Penicillin Paddock":0},
     treatments: [], newMoms: [], colostrumMob: [], milkingHerd: [],
     oad: [], peno: [], lameCows: [], lameArchive: [],
-    watchList: [], calvedList: [], usedKeeperTags: []
+    watchList: [], calvedList: [], usedKeeperTags: [], cowDeaths: []
   };
 }
 
@@ -491,7 +505,7 @@ window.startFirestoreSync = function() {
     _receivingSnapshot = true;
     if (snap.exists()) {
       const d = snap.data();
-      ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','usedKeeperTags']
+      ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','usedKeeperTags','cowDeaths']
         .forEach(k => { d[k] = d[k] || []; });
       S = d;
     }
@@ -591,6 +605,7 @@ function render() {
   renderLame();
   renderCalvingWatch();
   renderCalving();
+  renderCowDeathList();
 }
 
 function renderBays() {
@@ -738,24 +753,45 @@ function removeFromWatch(id) {
   save(); renderCalvingWatch();
 }
 
-function setCalvedSex(id, sex) {
+function setCalvedSex(id, sex, twin) {
   const c = S.calvedList.find(x => x.id === id); if (!c) return;
-  c.sex = sex; c.calfType = null; c.keeperTag = null;
+  if (twin) { c.twinSex = sex; c.twinType = null; c.twinKeeperTag = null; }
+  else { c.sex = sex; c.calfType = null; c.keeperTag = null; }
   save(); renderCalvingWatch();
 }
 
-function setCalvedType(id, type) {
+function setCalvedType(id, type, twin) {
   const c = S.calvedList.find(x => x.id === id); if (!c) return;
-  c.calfType = type; c.keeperTag = null;
+  if (twin) { c.twinType = type; c.twinKeeperTag = null; }
+  else { c.calfType = type; c.keeperTag = null; }
   save(); renderCalvingWatch();
 }
 
-function setKeeperTag(id, tag) {
+function setKeeperTag(id, tag, twin) {
   const c = S.calvedList.find(x => x.id === id); if (!c) return;
-  // remove from previously used if reassigning
-  if (c.keeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.keeperTag);
-  c.keeperTag = tag;
-  if (!S.usedKeeperTags.includes(tag)) S.usedKeeperTags.push(tag);
+  if (twin) {
+    if (c.twinKeeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.twinKeeperTag);
+    c.twinKeeperTag = tag;
+    if (!S.usedKeeperTags.includes(tag)) S.usedKeeperTags.push(tag);
+  } else {
+    if (c.keeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.keeperTag);
+    c.keeperTag = tag;
+    if (!S.usedKeeperTags.includes(tag)) S.usedKeeperTags.push(tag);
+  }
+  save(); renderCalvingWatch();
+}
+
+function toggleTwins(id) {
+  const c = S.calvedList.find(x => x.id === id); if (!c) return;
+  c.twins = !c.twins;
+  if (!c.twins) { c.twinSex = null; c.twinType = null; c.twinKeeperTag = null; c.twinDead = false; }
+  save(); renderCalvingWatch();
+}
+
+function toggleDead(id, twin) {
+  const c = S.calvedList.find(x => x.id === id); if (!c) return;
+  if (twin) c.twinDead = !c.twinDead;
+  else c.calfDead = !c.calfDead;
   save(); renderCalvingWatch();
 }
 
@@ -777,7 +813,10 @@ function clearCalvedList() {
 
 function removeFromCalved(id) {
   const c = S.calvedList.find(x => x.id === id);
-  if (c && c.keeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.keeperTag);
+  if (c) {
+    if (c.keeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.keeperTag);
+    if (c.twinKeeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.twinKeeperTag);
+  }
   S.calvedList = S.calvedList.filter(x => x.id !== id);
   save(); renderCalvingWatch();
 }
@@ -840,39 +879,66 @@ function renderCalvingWatch() {
       const availTags = [];
       for (let t = 1; t <= 350; t++) { if (!S.usedKeeperTags.includes(t)) availTags.push(t); }
 
-      calvedEl.innerHTML = pendingCows.map(c => {
-        const bayLabel = c.bay ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 5px;margin-left:4px">${c.bay==='Penicillin Paddock'?'P':c.bay.replace('Bay ','')}</span>` : '';
-        const sexBtns = `
-          <button class="foot-btn${c.sex==='H'?' selected':''}" onclick="setCalvedSex('${c.id}','H')">H</button>
-          <button class="foot-btn${c.sex==='B'?' selected':''}" onclick="setCalvedSex('${c.id}','B')">B</button>`;
+      // Helper to build one calf's selector block
+      function calfBlock(c, availTags, twin) {
+        const sex = twin ? c.twinSex : c.sex;
+        const calfType = twin ? c.twinType : c.calfType;
+        const keeperTag = twin ? c.twinKeeperTag : c.keeperTag;
+        const dead = twin ? c.twinDead : c.calfDead;
+        const tParam = twin ? ',true' : ',false';
+
+        const sexBtns = `<div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="foot-btn${sex==='H'?' selected':''}" onclick="setCalvedSex('${c.id}','H'${tParam})">H</button>
+          <button class="foot-btn${sex==='B'?' selected':''}" onclick="setCalvedSex('${c.id}','B'${tParam})">B</button>
+          <button class="foot-btn${dead?' selected':''}" style="${dead?'background:var(--red);border-color:var(--red);color:#fff;':''}" onclick="toggleDead('${c.id}'${tParam})">☠ Dead</button>
+        </div>`;
 
         let typeBtns = '';
-        if (c.sex === 'H') {
-          typeBtns = `
-            <button class="foot-btn${c.calfType==='Keeper'?' selected':''}" onclick="setCalvedType('${c.id}','Keeper')">Keeper</button>
-            <button class="foot-btn${c.calfType==='Hereford'?' selected':''}" onclick="setCalvedType('${c.id}','Hereford')">Hereford</button>`;
-        } else if (c.sex === 'B') {
-          typeBtns = `
-            <button class="foot-btn${c.calfType==='Bobby'?' selected':''}" onclick="setCalvedType('${c.id}','Bobby')">Bobby</button>
-            <button class="foot-btn${c.calfType==='Hereford'?' selected':''}" onclick="setCalvedType('${c.id}','Hereford')">Hereford</button>`;
-        }
+        if (sex === 'H') typeBtns = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          <button class="foot-btn${calfType==='Keeper'?' selected':''}" onclick="setCalvedType('${c.id}','Keeper'${tParam})">Keeper</button>
+          <button class="foot-btn${calfType==='Hereford'?' selected':''}" onclick="setCalvedType('${c.id}','Hereford'${tParam})">Hereford</button>
+        </div>`;
+        else if (sex === 'B') typeBtns = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          <button class="foot-btn${calfType==='Bobby'?' selected':''}" onclick="setCalvedType('${c.id}','Bobby'${tParam})">Bobby</button>
+          <button class="foot-btn${calfType==='Hereford'?' selected':''}" onclick="setCalvedType('${c.id}','Hereford'${tParam})">Hereford</button>
+        </div>`;
 
         let keeperPicker = '';
-        if (c.calfType === 'Keeper') {
-          keeperPicker = `
-            <details style="margin-top:8px">
-              <summary style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted);cursor:pointer">
-                ${c.keeperTag ? '🏷 Tag #'+c.keeperTag+' assigned' : 'Assign keeper tag ▾'}
-              </summary>
-              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;max-height:150px;overflow-y:auto">
-                ${availTags.concat(c.keeperTag ? [c.keeperTag] : []).sort((a,b)=>a-b)
-                  .map(t => `<button class="foot-btn${c.keeperTag===t?' selected':''}" style="padding:4px 8px;font-size:.7rem" onclick="setKeeperTag('${c.id}',${t})">${t}</button>`).join('')}
-              </div>
-            </details>`;
+        if (calfType === 'Keeper') {
+          const tagsForPicker = availTags.concat(keeperTag ? [keeperTag] : []).sort((a,b)=>a-b);
+          keeperPicker = `<details style="margin-top:8px">
+            <summary style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted);cursor:pointer">
+              ${keeperTag ? '🏷 Tag #'+keeperTag+' assigned' : 'Assign keeper tag ▾'}
+            </summary>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;max-height:150px;overflow-y:auto">
+              ${tagsForPicker.map(t => `<button class="foot-btn${keeperTag===t?' selected':''}" style="padding:4px 8px;font-size:.7rem" onclick="setKeeperTag('${c.id}',${t}${tParam})">${t}</button>`).join('')}
+            </div>
+          </details>`;
         }
 
-        const freshBtn = (c.sex && c.calfType && (c.calfType !== 'Keeper' || c.keeperTag))
-          ? `<button class="btn${c.movedToFresh?' sec':''}" style="font-size:.68rem;padding:4px 10px;margin-top:8px" onclick="moveCalvedToFresh('${c.id}')">${c.movedToFresh ? '✓ In Fresh Cows' : '→ Fresh Cows'}</button>`
+        return sexBtns + typeBtns + keeperPicker;
+      }
+
+      calvedEl.innerHTML = pendingCows.map(c => {
+        const bayLabel = c.bay ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 5px;margin-left:4px">${c.bay==='Penicillin Paddock'?'P':c.bay.replace('Bay ','')}</span>` : '';
+
+        const calf1 = calfBlock(c, availTags, false);
+        const twinsSection = c.twins
+          ? `<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:10px">
+               <div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;color:var(--muted);margin-bottom:6px">TWIN CALF</div>
+               ${calfBlock(c, availTags, true)}
+             </div>`
+          : '';
+
+        const twinToggle = c.sex
+          ? `<button class="foot-btn${c.twins?' selected':''}" style="margin-top:6px;font-size:.68rem" onclick="toggleTwins('${c.id}')">👯 Twins</button>`
+          : '';
+
+        // Fresh cows button — requires calf 1 complete, and if twins, twin complete too
+        const calf1Ready = c.sex && c.calfType && (c.calfType !== 'Keeper' || c.keeperTag);
+        const twinReady = !c.twins || (c.twinSex && c.twinType && (c.twinType !== 'Keeper' || c.twinKeeperTag));
+        const freshBtn = (calf1Ready && twinReady)
+          ? `<button class="btn${c.movedToFresh?' sec':''}" style="font-size:.68rem;padding:4px 10px;margin-top:10px" onclick="moveCalvedToFresh('${c.id}')">${c.movedToFresh ? '✓ In Fresh Cows' : '→ Fresh Cows'}</button>`
           : '';
 
         return `<div style="border:1px solid var(--border);border-radius:4px;padding:10px 12px;margin-bottom:8px">
@@ -883,9 +949,9 @@ function renderCalvingWatch() {
               <button class="del" onclick="removeFromCalved('${c.id}')">✕</button>
             </div>
           </div>
-          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${sexBtns}</div>
-          ${typeBtns ? `<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">${typeBtns}</div>` : ''}
-          ${keeperPicker}
+          <div style="margin-top:8px">${calf1}</div>
+          ${twinToggle}
+          ${twinsSection}
           ${freshBtn}
         </div>`;
       }).join('');
@@ -923,16 +989,26 @@ function renderCalvingHistory() {
 
   el.innerHTML = dates.map(date => {
     const cows = groups[date];
-    const keepers = cows.filter(c => c.calfType === 'Keeper').length;
-    const bobbies = cows.filter(c => c.calfType === 'Bobby').length;
-    const herefords = cows.filter(c => c.calfType === 'Hereford').length;
-    const unknown = cows.filter(c => !c.calfType).length;
-
+    // Count all calves including twins
+    let keepers=0, bobbies=0, herefords=0, unknown=0, deadCalves=0;
+    cows.forEach(c => {
+      if (c.calfType==='Keeper') keepers++; else if (c.calfType==='Bobby') bobbies++;
+      else if (c.calfType==='Hereford') herefords++; else unknown++;
+      if (c.calfDead) deadCalves++;
+      if (c.twins) {
+        if (c.twinType==='Keeper') keepers++; else if (c.twinType==='Bobby') bobbies++;
+        else if (c.twinType==='Hereford') herefords++; else unknown++;
+        if (c.twinDead) deadCalves++;
+      }
+    });
+    const twins = cows.filter(c=>c.twins).length;
     let summaryParts = [];
     if (keepers) summaryParts.push(`${keepers}K`);
     if (bobbies) summaryParts.push(`${bobbies}B`);
     if (herefords) summaryParts.push(`${herefords}HF`);
     if (unknown) summaryParts.push(`${unknown}?`);
+    if (twins) summaryParts.push(`${twins} twins`);
+    if (deadCalves) summaryParts.push(`${deadCalves} ☠`);
     const summary = summaryParts.join(' · ');
 
     const rows = cows.map(c => {
@@ -940,10 +1016,17 @@ function renderCalvingHistory() {
       const typeLabel = c.calfType || '?';
       const sexLabel = c.sex || '?';
       const keeperTagLabel = c.keeperTag ? ` #${c.keeperTag}` : '';
+      const deadMark = c.calfDead ? ' ☠' : '';
+      const cowDeadMark = (S.cowDeaths||[]).find(d=>d.tag===c.tag) ? ' <span style="color:var(--red);font-size:.65rem">COW DIED</span>' : '';
+      let calfInfo = `${sexLabel} · ${typeLabel}${keeperTagLabel}${deadMark}`;
+      if (c.twins) {
+        const t2 = `${c.twinSex||'?'} · ${c.twinType||'?'}${c.twinKeeperTag?' #'+c.twinKeeperTag:''}${c.twinDead?' ☠':''}`;
+        calfInfo += ` + ${t2} <span style="font-size:.62rem;color:var(--muted)">(twins)</span>`;
+      }
       return `<tr>
-        <td><span class="tag" style="font-size:.8rem">${c.tag}</span></td>
+        <td><span class="tag" style="font-size:.8rem">${c.tag}</span>${cowDeadMark}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">Bay ${bayLabel}</td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">${sexLabel} · ${typeLabel}${keeperTagLabel}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">${calfInfo}</td>
       </tr>`;
     }).join('');
 
@@ -1182,6 +1265,56 @@ function initGraze() {
   ['col','milk','oad','peno'].forEach(k => updateGraze(k));
 }
 
+// ── Remove Cow
+function removeCow() {
+  const tag = document.getElementById('removeCowTag').value.trim();
+  const date = document.getElementById('removeCowDate').value || todayStr();
+  const notes = document.getElementById('removeCowNotes').value.trim();
+  const status = document.getElementById('removeCowStatus');
+  if (!tag) { status.style.color='var(--red)'; status.textContent='Enter a tag number'; setTimeout(()=>status.textContent='',2000); return; }
+
+  // Remove from all active groups
+  const groups = ['newMoms','colostrumMob','milkingHerd','oad','peno','watchList','lameCows'];
+  groups.forEach(g => { if (S[g]) S[g] = S[g].filter(x => x.tag !== tag); });
+  // Also remove from treatments
+  S.treatments = S.treatments.filter(t => t.tag !== tag);
+
+  // Record death
+  if (!S.cowDeaths) S.cowDeaths = [];
+  S.cowDeaths.unshift({ id: uid(), tag, date, notes });
+
+  document.getElementById('removeCowTag').value = '';
+  document.getElementById('removeCowNotes').value = '';
+  save(); render();
+  status.style.color='var(--green)'; status.textContent=`✓ Tag ${tag} removed and death recorded`;
+  setTimeout(()=>status.textContent='',3000);
+  renderCowDeathList();
+}
+
+function renderCowDeathList() {
+  const el = document.getElementById('cowDeathList');
+  if (!el) return;
+  const deaths = S.cowDeaths || [];
+  if (!deaths.length) { el.innerHTML=''; return; }
+  el.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Cow death register (${deaths.length})</div>
+    <table>
+      <thead><tr><th>Tag</th><th>Date</th><th>Notes</th><th></th></tr></thead>
+      <tbody>${deaths.map(d=>`
+        <tr>
+          <td><span class="tag">${d.tag}</span></td>
+          <td style="font-size:.72rem">${fmtDate(d.date)}</td>
+          <td style="font-size:.72rem;color:var(--muted)">${d.notes||'—'}</td>
+          <td><button class="del" onclick="delCowDeath('${d.id}')">✕</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function delCowDeath(id) {
+  S.cowDeaths = (S.cowDeaths||[]).filter(d=>d.id!==id);
+  save(); renderCowDeathList();
+}
+
 // ── Export
 function doExport() {
   const lameSummary = !S.lameCows.length ? "(none)" :
@@ -1211,6 +1344,8 @@ function doExport() {
     !S.watchList.length?"(none)":S.watchList.map(w=>`Tag ${w.tag} | ${w.location||"?"} | ${w.status}`).join("\n"),
     "", "=== CALVED LIST ===",
     !S.calvedList.length?"(none)":S.calvedList.map(c=>`Tag ${c.tag} | ${fmtDate(c.dateCalved)} | Sex: ${c.sex||'?'} | Type: ${c.calfType||'?'}${c.keeperTag?' | Keeper tag: '+c.keeperTag:''}`).join("\n"),
+    "", "=== COW DEATHS ===",
+    !(S.cowDeaths||[]).length?"(none)":(S.cowDeaths||[]).map(d=>`Tag ${d.tag} | ${fmtDate(d.date)}${d.notes?' | '+d.notes:''}`).join("\n"),
     "", "=== IMPORT CODE ===",
     "DAIRY_IMPORT:" + JSON.stringify(S),
   ].join("\n");
@@ -1233,7 +1368,7 @@ async function doImport() {
     if (start===-1||end===-1) throw new Error();
     const imported = JSON.parse(jsonStr.slice(start,end+1));
     if (!imported.bays) throw new Error();
-    ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','usedKeeperTags']
+    ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','usedKeeperTags','cowDeaths']
       .forEach(k => { imported[k] = imported[k] || []; });
     // Pause the Firestore listener while we write
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
@@ -1273,6 +1408,7 @@ document.addEventListener("keydown", e => {
 
 // ── Init
 document.getElementById("momDate").value = todayStr();
+document.getElementById("removeCowDate").value = todayStr();
 </script>
 </body>
 </html>
