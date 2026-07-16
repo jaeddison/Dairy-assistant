@@ -857,9 +857,10 @@ function renderCalvingWatch() {
       Object.values(groups).forEach(g => g.sort((a,b) => a.tag.localeCompare(b.tag, undefined, {numeric:true})));
       const orderedKeys = [...bayOrder.filter(b => groups[b]), ...Object.keys(groups).filter(k => !bayOrder.includes(k))];
       
+      const watchTotal = S.watchList.length;
       watchEl.innerHTML = orderedKeys.map(loc => `
         <div style="margin-bottom:12px">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:6px">${loc}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:6px;display:flex;justify-content:space-between"><span>${loc}</span><span>${groups[loc].length}</span></div>
           <table>
             <thead><tr><th>Tag</th><th>Status</th><th></th><th></th></tr></thead>
             <tbody>${groups[loc].map(w => `
@@ -871,7 +872,8 @@ function renderCalvingWatch() {
               </tr>`).join('')}
             </tbody>
           </table>
-        </div>`).join('');
+        </div>`).join('') +
+        `<div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:600;color:var(--accent);border-top:2px solid var(--border);padding-top:8px;margin-top:4px;display:flex;justify-content:space-between"><span>Total on watch</span><span>${watchTotal}</span></div>`;
     }
   }
 
@@ -931,6 +933,18 @@ function renderCalvingWatch() {
         return sexBtns + typeBtns + keeperPicker;
       }
 
+      // Bay counts for calved list
+      const calvedBayGroups = {};
+      pendingCows.forEach(c => {
+        const b = c.bay || 'Unknown';
+        calvedBayGroups[b] = (calvedBayGroups[b] || 0) + 1;
+      });
+      const bayOrder2 = ['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Penicillin Paddock','Unknown'];
+      const calvedBaySummary = bayOrder2.filter(b=>calvedBayGroups[b]).map(b=>
+        `<span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted)">${b==='Penicillin Paddock'?'P':b.replace('Bay ','')} <strong style="color:var(--accent)">${calvedBayGroups[b]}</strong></span>`
+      ).join('<span style="color:var(--border);margin:0 4px">·</span>');
+      const calvedTotal = pendingCows.length;
+
       calvedEl.innerHTML = pendingCows.map(c => {
         const bayLabel = c.bay ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 5px;margin-left:4px">${c.bay==='Penicillin Paddock'?'P':c.bay.replace('Bay ','')}</span>` : '';
 
@@ -966,7 +980,13 @@ function renderCalvingWatch() {
           ${twinsSection}
           ${freshBtn}
         </div>`;
-      }).join('');
+      }).join('') + (pendingCows.length ? `
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;border-top:2px solid var(--border);padding-top:10px;margin-top:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <strong style="color:var(--accent)">Total: ${calvedTotal}</strong>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">${calvedBaySummary}</div>
+        </div>` : '');
     }
   }
 
