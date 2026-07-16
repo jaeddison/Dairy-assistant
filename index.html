@@ -462,7 +462,7 @@ function freshState() {
     bays: {"Bay 1":0,"Bay 2":0,"Bay 3":0,"Bay 4":0,"Bay 5":0,"Bay 6":0,"Penicillin Paddock":0},
     treatments: [], newMoms: [], colostrumMob: [], milkingHerd: [],
     oad: [], peno: [], lameCows: [], lameArchive: [],
-    watchList: [], calvedList: [], usedKeeperTags: [], cowDeaths: []
+    watchList: [], calvedList: [], calvingHistory: [], usedKeeperTags: [], cowDeaths: []
   };
 }
 
@@ -505,7 +505,7 @@ window.startFirestoreSync = function() {
     _receivingSnapshot = true;
     if (snap.exists()) {
       const d = snap.data();
-      ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','usedKeeperTags','cowDeaths']
+      ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
         .forEach(k => { d[k] = d[k] || []; });
       S = d;
     }
@@ -797,18 +797,32 @@ function toggleDead(id, twin) {
 
 function moveCalvedToFresh(id) {
   const c = S.calvedList.find(x => x.id === id); if (!c) return;
-  // Add to newMoms on Fresh Cows tab
   removeDuplicates(c.tag, 'newMoms');
   S.newMoms.push({ id: uid(), tag: c.tag, dateLeftBarn: todayStr() });
   c.movedToFresh = true;
   save(); renderCalvingWatch(); renderCalving();
 }
 
+let _clearCalvedConfirming = false;
 function clearCalvedList() {
-  if (!confirm('Clear the entire calved list? This cannot be undone.')) return;
-  // Release keeper tags? No — keep usedKeeperTags so numbers stay reserved
+  if (!_clearCalvedConfirming) {
+    _clearCalvedConfirming = true;
+    renderCalvingWatch();
+    return;
+  }
+  _clearCalvedConfirming = false;
+  if (!S.calvingHistory) S.calvingHistory = [];
+  S.calvedList.forEach(c => {
+    const idx = S.calvingHistory.findIndex(h => h.id === c.id);
+    if (idx !== -1) S.calvingHistory[idx] = { ...c };
+    else S.calvingHistory.push({ ...c });
+  });
   S.calvedList = [];
   save(); renderCalvingWatch();
+}
+function cancelClearCalved() {
+  _clearCalvedConfirming = false;
+  renderCalvingWatch();
 }
 
 function removeFromCalved(id) {
@@ -869,10 +883,8 @@ function renderCalvingWatch() {
 
   if (calvedEl) {
     // Only show today's unfinished entries in the active calved section
-    const today = todayStr();
-    const activeCows = S.calvedList.filter(c => c.dateCalved === today || !c.movedToFresh && !c.sex);
-    // Actually show all that haven't been fully processed or are today
-    const pendingCows = S.calvedList.filter(c => !c.movedToFresh || c.dateCalved === today);
+    // Show all cows in the active calved list
+    const pendingCows = S.calvedList;
     
     if (!pendingCows.length) { calvedEl.innerHTML = `<p class="empty">No calved cows to process</p>`; }
     else {
@@ -934,9 +946,9 @@ function renderCalvingWatch() {
           ? `<button class="foot-btn${c.twins?' selected':''}" style="margin-top:6px;font-size:.68rem" onclick="toggleTwins('${c.id}')">👯 Twins</button>`
           : '';
 
-        // Fresh cows button — requires calf 1 complete, and if twins, twin complete too
-        const calf1Ready = c.sex && c.calfType && (c.calfType !== 'Keeper' || c.keeperTag);
-        const twinReady = !c.twins || (c.twinSex && c.twinType && (c.twinType !== 'Keeper' || c.twinKeeperTag));
+        // Fresh cows button — dead calf overrides keeper tag requirement
+        const calf1Ready = c.sex && c.calfType && (c.calfDead || c.calfType !== 'Keeper' || c.keeperTag);
+        const twinReady = !c.twins || (c.twinSex && c.twinType && (c.twinDead || c.twinType !== 'Keeper' || c.twinKeeperTag));
         const freshBtn = (calf1Ready && twinReady)
           ? `<button class="btn${c.movedToFresh?' sec':''}" style="font-size:.68rem;padding:4px 10px;margin-top:10px" onclick="moveCalvedToFresh('${c.id}')">${c.movedToFresh ? '✓ In Fresh Cows' : '→ Fresh Cows'}</button>`
           : '';
@@ -959,9 +971,18 @@ function renderCalvingWatch() {
   }
 
   if (calvedClearBtn) {
-    calvedClearBtn.innerHTML = S.calvedList.length
-      ? `<button class="btn sec" onclick="clearCalvedList()">Clear calved list</button>`
-      : '';
+    if (!S.calvedList.length) {
+      calvedClearBtn.innerHTML = '';
+    } else if (_clearCalvedConfirming) {
+      calvedClearBtn.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted)">Archive all to history and clear?</span>
+          <button class="btn" style="background:var(--red);padding:6px 12px;font-size:.78rem" onclick="clearCalvedList()">Yes, clear</button>
+          <button class="btn sec" style="padding:6px 12px;font-size:.78rem" onclick="cancelClearCalved()">Cancel</button>
+        </div>`;
+    } else {
+      calvedClearBtn.innerHTML = `<button class="btn sec" onclick="clearCalvedList()">Clear calved list</button>`;
+    }
   }
 
   // Set direct entry date default
@@ -975,11 +996,14 @@ function renderCalvingWatch() {
 function renderCalvingHistory() {
   const el = document.getElementById('calvingHistory');
   if (!el) return;
-  if (!S.calvedList.length) { el.innerHTML = `<p class="empty">No calving records yet</p>`; return; }
+  // Merge calvedList and calvingHistory, deduplicate by id, history takes precedence
+  const allRecords = [...(S.calvingHistory||[])];
+  S.calvedList.forEach(c => { if (!allRecords.find(h=>h.id===c.id)) allRecords.push(c); });
+  if (!allRecords.length) { el.innerHTML = `<p class="empty">No calving records yet</p>`; return; }
 
   // Group by date
   const groups = {};
-  S.calvedList.forEach(c => {
+  allRecords.forEach(c => {
     if (!groups[c.dateCalved]) groups[c.dateCalved] = [];
     groups[c.dateCalved].push(c);
   });
@@ -1368,7 +1392,7 @@ async function doImport() {
     if (start===-1||end===-1) throw new Error();
     const imported = JSON.parse(jsonStr.slice(start,end+1));
     if (!imported.bays) throw new Error();
-    ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','usedKeeperTags','cowDeaths']
+    ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
       .forEach(k => { imported[k] = imported[k] || []; });
     // Pause the Firestore listener while we write
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
