@@ -295,6 +295,41 @@ input:focus,select:focus{border-color:var(--accent)}
       </div>
     </div>
 
+    <!-- Calf Tally -->
+    <div class="card">
+      <h2>Calf Tally <span style="font-size:.72rem;color:var(--muted);font-weight:400">— scratchpad, not saved</span></h2>
+      <div style="display:flex;gap:12px;justify-content:space-around;margin-top:4px;flex-wrap:wrap">
+        <div style="text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Heifer</div>
+          <div style="font-family:'Libre Baskerville',serif;font-size:2.2rem;font-weight:700;color:var(--accent);line-height:1" id="tallyH">0</div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
+            <button onclick="tallyDec('H')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:var(--muted)">−</button>
+            <button onclick="tallyInc('H')" style="background:var(--accent);border:none;border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:#fff">+</button>
+          </div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Bull</div>
+          <div style="font-family:'Libre Baskerville',serif;font-size:2.2rem;font-weight:700;color:var(--accent);line-height:1" id="tallyB">0</div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
+            <button onclick="tallyDec('B')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:var(--muted)">−</button>
+            <button onclick="tallyInc('B')" style="background:var(--accent);border:none;border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:#fff">+</button>
+          </div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Hereford</div>
+          <div style="font-family:'Libre Baskerville',serif;font-size:2.2rem;font-weight:700;color:var(--accent);line-height:1" id="tallyHF">0</div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
+            <button onclick="tallyDec('HF')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:var(--muted)">−</button>
+            <button onclick="tallyInc('HF')" style="background:var(--accent);border:none;border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:#fff">+</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted)">Total: <strong id="tallyTotal" style="color:var(--accent)">0</strong></span>
+        <button onclick="tallyReset()" class="btn sec" style="padding:5px 12px;font-size:.75rem">Reset</button>
+      </div>
+    </div>
+
     <!-- Calved List -->
     <div class="card">
       <h2>Calved <span id="calvedCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
@@ -1551,6 +1586,22 @@ async function doImport() {
     status.style.color="var(--red)"; status.textContent="✕ Invalid — check and try again";
     setTimeout(()=>status.textContent="",4000);
   }
+}
+
+// ── Calf tally (in-memory scratchpad, not persisted)
+const _tally = {H:0, B:0, HF:0};
+function tallyInc(k) { _tally[k]++; tallyRender(); }
+function tallyDec(k) { if (_tally[k] > 0) _tally[k]--; tallyRender(); }
+function tallyReset() { _tally.H=0; _tally.B=0; _tally.HF=0; tallyRender(); }
+function tallyRender() {
+  const h = document.getElementById('tallyH');
+  const b = document.getElementById('tallyB');
+  const hf = document.getElementById('tallyHF');
+  const tot = document.getElementById('tallyTotal');
+  if (h) h.textContent = _tally.H;
+  if (b) b.textContent = _tally.B;
+  if (hf) hf.textContent = _tally.HF;
+  if (tot) tot.textContent = _tally.H + _tally.B + _tally.HF;
 }
 
 // ── Keyboard
