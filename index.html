@@ -800,13 +800,17 @@ function moveCalvedToFresh(id) {
   removeDuplicates(c.tag, 'newMoms');
   S.newMoms.push({ id: uid(), tag: c.tag, dateLeftBarn: todayStr() });
   c.movedToFresh = true;
+  // Deduct from bay count if bay is recorded
+  if (c.bay && S.bays[c.bay] !== undefined) {
+    S.bays[c.bay] = Math.max(0, (S.bays[c.bay] || 0) - 1);
+  }
   // Archive to history then remove from active list
   if (!S.calvingHistory) S.calvingHistory = [];
   const idx = S.calvingHistory.findIndex(h => h.id === c.id);
   if (idx !== -1) S.calvingHistory[idx] = { ...c };
   else S.calvingHistory.push({ ...c });
   S.calvedList = S.calvedList.filter(x => x.id !== id);
-  save(); renderCalvingWatch(); renderCalving();
+  save(); renderCalvingWatch(); render();
 }
 
 let _clearCalvedConfirming = false;
