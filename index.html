@@ -135,6 +135,12 @@ input:focus,select:focus{border-color:var(--accent)}
 .treat-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted);cursor:pointer;transition:all .2s}
 .treat-btn.pending{background:#f5ede0;border-color:var(--amber);color:var(--amber);font-weight:600}
 .treat-btn.confirmed{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+.mineral-calc{background:#f0f4ee;border:1px solid #c8d8c0;border-radius:3px;padding:10px 12px;margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text)}
+.mineral-calc .mineral-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px}
+.mineral-row{display:flex;justify-content:space-between;padding:2px 0}
+.mineral-row .mineral-label{color:var(--muted)}
+.mineral-row .mineral-value{font-weight:600;color:var(--green)}
+.mineral-divider{border:none;border-top:1px dashed #c8d8c0;margin:6px 0}
 .graze-calc{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .graze-calc label{font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted)}
 .graze-calc input{width:70px;padding:5px 7px;font-family:'JetBrains Mono',monospace;font-size:.8rem;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--text);outline:none}
@@ -358,6 +364,7 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card">
       <h2>Milking Herd <span id="milkCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <div id="milkTable"></div>
+      <div id="milkMineralBlock"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
         <input type="number" id="milkGraze" min="0" onchange="updateGraze('milk')" oninput="updateGraze('milk')">
@@ -1099,6 +1106,43 @@ function renderCalvingHistory() {
   }).join('');
 }
 
+// ── Mineral calculations
+function fmtMineral(grams) {
+  if (grams === 0) return '0g';
+  if (grams < 1000) return grams + 'g';
+  return (grams / 1000).toFixed(grams % 1000 === 0 ? 0 : 1) + 'kg';
+}
+
+function mineralBlock(group, count) {
+  if (count === 0) return '';
+  let rows = '';
+  if (group === 'newMoms') {
+    const mgo = count * 100;
+    const lime = count * 200;
+    rows = `
+      <div class="mineral-title">Minerals — on bale (per day)</div>
+      <div class="mineral-row"><span class="mineral-label">MgO</span><span class="mineral-value">${fmtMineral(mgo)}</span></div>
+      <div class="mineral-row"><span class="mineral-label">Lime</span><span class="mineral-value">${fmtMineral(lime)}</span></div>`;
+  } else if (group === 'colostrum') {
+    const mgo_am = count * 100;
+    const lime_am = count * 200;
+    const lime_pm = count * 200;
+    rows = `
+      <div class="mineral-title">Minerals — morning bale</div>
+      <div class="mineral-row"><span class="mineral-label">MgO</span><span class="mineral-value">${fmtMineral(mgo_am)}</span></div>
+      <div class="mineral-row"><span class="mineral-label">Lime</span><span class="mineral-value">${fmtMineral(lime_am)}</span></div>
+      <hr class="mineral-divider">
+      <div class="mineral-title">Minerals — afternoon break</div>
+      <div class="mineral-row"><span class="mineral-label">Lime</span><span class="mineral-value">${fmtMineral(lime_pm)}</span></div>`;
+  } else if (group === 'milking') {
+    const lime = count * 100;
+    rows = `
+      <div class="mineral-title">Minerals — fresh break (once daily)</div>
+      <div class="mineral-row"><span class="mineral-label">Lime</span><span class="mineral-value">${fmtMineral(lime)}</span></div>`;
+  }
+  return `<div class="mineral-calc">${rows}</div>`;
+}
+
 function renderCalving() {
   // New Moms
   const momC = document.getElementById("momCount");
@@ -1116,7 +1160,7 @@ function renderCalving() {
           <td><button class="btn sec" style="font-size:.7rem;padding:4px 8px" onclick="momToCol('${m.id}')">→ Colostrum</button></td>
           <td><button class="del" onclick="delMom('${m.id}')">✕</button></td>
         </tr>`).join("")}
-      </tbody></table>`;
+      </tbody></table>` + mineralBlock('newMoms', S.newMoms.length);
   }
 
   // Colostrum
@@ -1141,9 +1185,12 @@ function renderCalving() {
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" onclick="colExit('${c.id}','peno')">Peno</button></td>
           <td><button class="del" onclick="delCol('${c.id}')">✕</button></td>
         </tr>`).join("")}
-      </tbody></table>`;
+      </tbody></table>` + mineralBlock('colostrum', sorted.length);
   }
 
+  // Milking mineral block
+  const milkMineralEl = document.getElementById('milkMineralBlock');
+  if (milkMineralEl) milkMineralEl.innerHTML = mineralBlock('milking', S.milkingHerd.length);
   renderGroup('milkingHerd','milkTable','milkCount');
   renderGroup('oad','oadTable','oadCount');
   renderGroup('peno','penoTable','penoCount');
