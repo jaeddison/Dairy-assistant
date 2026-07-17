@@ -339,6 +339,17 @@ input:focus,select:focus{border-color:var(--accent)}
 
   <!-- TAB 4: FRESH COWS -->
   <div id="tab4" class="hidden">
+    <div class="card" style="background:var(--bg);border-color:var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Mineral requirements</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-top:2px">New Moms · Colostrum · Milking Herd</div>
+        </div>
+        <button class="btn" onclick="copyMinerals()" style="padding:8px 14px;white-space:nowrap">Copy all</button>
+      </div>
+      <div id="mineralCopyStatus" style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--green);margin-top:6px;min-height:14px"></div>
+    </div>
+
     <div class="card">
       <h2>New Moms <span id="momCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <div id="momTable"></div>
@@ -928,6 +939,7 @@ function renderCalvingWatch() {
         if (sex === 'H') typeBtns = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
           <button class="foot-btn${calfType==='Keeper'?' selected':''}" onclick="setCalvedType('${c.id}','Keeper'${tParam})">Keeper</button>
           <button class="foot-btn${calfType==='Hereford'?' selected':''}" onclick="setCalvedType('${c.id}','Hereford'${tParam})">Hereford</button>
+          <button class="foot-btn${calfType==='Bobby'?' selected':''}" onclick="setCalvedType('${c.id}','Bobby'${tParam})">Bobby</button>
         </div>`;
         else if (sex === 'B') typeBtns = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
           <button class="foot-btn${calfType==='Bobby'?' selected':''}" onclick="setCalvedType('${c.id}','Bobby'${tParam})">Bobby</button>
@@ -1104,6 +1116,48 @@ function renderCalvingHistory() {
       </div>
     </details>`;
   }).join('');
+}
+
+// ── Copy minerals to clipboard
+function copyMinerals() {
+  const momCount = S.newMoms.length;
+  const colCount = S.colostrumMob.length;
+  const milkCount = S.milkingHerd.length;
+
+  const lines = ['Mineral requirements — ' + new Date().toLocaleDateString('en-NZ', {timeZone:'Pacific/Auckland', day:'numeric', month:'short'}), ''];
+
+  if (momCount > 0) {
+    lines.push('New Moms (' + momCount + ' cows) — on bale');
+    lines.push('MgO: ' + fmtMineral(momCount * 100));
+    lines.push('Lime: ' + fmtMineral(momCount * 200));
+    lines.push('');
+  }
+
+  if (colCount > 0) {
+    lines.push('Colostrum (' + colCount + ' cows)');
+    lines.push('Morning bale — MgO: ' + fmtMineral(colCount * 100) + ' · Lime: ' + fmtMineral(colCount * 200));
+    lines.push('Afternoon break — Lime: ' + fmtMineral(colCount * 200));
+    lines.push('');
+  }
+
+  if (milkCount > 0) {
+    lines.push('Milking herd (' + milkCount + ' cows) — fresh break');
+    lines.push('Lime: ' + fmtMineral(milkCount * 100));
+    lines.push('');
+  }
+
+  if (momCount === 0 && colCount === 0 && milkCount === 0) {
+    lines.push('No cows recorded yet.');
+  }
+
+  const text = lines.join('\n').trim();
+  navigator.clipboard?.writeText(text).then(() => {
+    const el = document.getElementById('mineralCopyStatus');
+    if (el) { el.textContent = '✓ Copied to clipboard'; setTimeout(() => el.textContent = '', 2000); }
+  }).catch(() => {
+    const el = document.getElementById('mineralCopyStatus');
+    if (el) { el.textContent = '✕ Copy failed — try again'; setTimeout(() => el.textContent = '', 2000); }
+  });
 }
 
 // ── Mineral calculations
