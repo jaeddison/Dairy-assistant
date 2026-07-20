@@ -499,7 +499,7 @@ input:focus,select:focus{border-color:var(--accent)}
 <script>
 const BAYS = ["Bay 1","Bay 2","Bay 3","Bay 4","Bay 5","Bay 6","Penicillin Paddock"];
 const FOOT_LABELS = {LF:"Left Front",RF:"Right Front",LR:"Left Rear",RR:"Right Rear"};
-const ALL_GROUPS = ['newMoms','colostrumMob','milkingHerd','oad','peno'];
+const ALL_GROUPS = ['newMoms','colostrumMob','milkingHerd','oad','peno','watchList','calvedList'];
 
 let S = freshState();
 let G = {col:100, milk:128, oad:100, peno:100};
@@ -623,11 +623,23 @@ const fmtDayHeader = (dateStr) => {
   return `${dayName} ${parseInt(d)} ${dt.toLocaleDateString('en-NZ',{month:'short',timeZone:'Pacific/Auckland'})}`;
 };
 const fmtDate = d => { if(!d) return "—"; const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`; };
-const daysSince = d => Math.floor((Date.now() - new Date(d)) / 86400000);
+const daysSince = d => {
+  // Compare NZ date strings directly — no Date object conversion to avoid UTC offset issues
+  const todayNZ = new Date().toLocaleDateString('en-CA', {timeZone:'Pacific/Auckland'}); // YYYY-MM-DD
+  if (!d || d === todayNZ) return 0;
+  // Parse year/month/day directly from strings
+  const [ty,tm,td] = todayNZ.split('-').map(Number);
+  const [fy,fm,fd] = d.split('-').map(Number);
+  // Use UTC construction so no timezone shift occurs
+  const msToday = Date.UTC(ty, tm-1, td);
+  const msFrom = Date.UTC(fy, fm-1, fd);
+  return Math.max(0, Math.floor((msToday - msFrom) / 86400000));
+};
 const bayTotal = () => Object.values(S.bays).reduce((a,b)=>a+b,0);
 
 function clearanceBadge(dateStr) {
-  const diff = Math.floor((new Date(dateStr) - new Date(new Date().toDateString())) / 86400000);
+  const todayNZ = new Date().toLocaleDateString('en-CA', {timeZone:'Pacific/Auckland'});
+  const diff = Math.floor((new Date(dateStr + 'T00:00:00') - new Date(todayNZ + 'T00:00:00')) / 86400000);
   if (diff < 0) return `<span class="badge green">Cleared</span>`;
   if (diff === 0) return `<span class="badge amber">Today</span>`;
   if (diff <= 7) return `<span class="badge amber">${diff}d</span>`;
@@ -761,6 +773,11 @@ function submitWatch() {
   if (!_watchBay) { return; }
   const tag = raw.trim();
   if (tag) {
+    // calvedList takes priority — can't add to watch if already calved
+    if (S.calvedList.find(c => c.tag === tag)) {
+      setTimeout(() => { const i = document.getElementById('watchTag'); if(i) i.focus(); }, 80);
+      return;
+    }
     S.watchList = S.watchList.filter(w => w.tag !== tag);
     S.watchList.push({ id: uid(), tag, status: _watchStatus, location: _watchBay, dateAdded: todayStr() });
   }
@@ -794,6 +811,7 @@ function addDirectCalved() {
   const raw = document.getElementById('directCalvedTag').value.trim();
   const date = document.getElementById('directCalvedDate').value || todayStr();
   if (!raw) return;
+  S.watchList = S.watchList.filter(w => w.tag !== raw);
   S.calvedList.push({ id: uid(), tag: raw, dateCalved: date, bay: _directBay, sex: null, calfType: null, keeperTag: null, movedToFresh: false });
   document.getElementById('directCalvedTag').value = '';
   save(); renderCalvingWatch();
@@ -1283,6 +1301,8 @@ function renderCalving() {
   renderGroup('milkingHerd','milkTable','milkCount');
   renderGroup('oad','oadTable','oadCount');
   renderGroup('peno','penoTable','penoCount');
+  // Refresh graze calcs whenever cow numbers change
+  ['col','milk','oad','peno'].forEach(k => updateGraze(k));
 }
 
 function renderGroup(key, tableId, countId) {
@@ -1393,6 +1413,8 @@ function removeDuplicates(tag, excludeGroup) {
     if (g === excludeGroup) return;
     if (g === 'newMoms') S.newMoms = S.newMoms.filter(x=>x.tag!==tag);
     else if (g === 'colostrumMob') S.colostrumMob = S.colostrumMob.filter(x=>x.tag!==tag);
+    else if (g === 'watchList') S.watchList = S.watchList.filter(x=>x.tag!==tag);
+    else if (g === 'calvedList') S.calvedList = S.calvedList.filter(x=>x.tag!==tag);
     else if (S[g]) S[g] = S[g].filter(x=>x.tag!==tag);
   });
 }
@@ -1510,7 +1532,7 @@ function doExport() {
   const lameSummary = !S.lameCows.length ? "(none)" :
     S.lameCows.map(c=>`Tag ${c.tag} | ${c.location} | ${c.feet.map(f=>FOOT_LABELS[f]).join(", ")}${c.notes?" | "+c.notes:""}`).join("\n");
   const summary = [
-    `DAIRY ASSISTANT EXPORT — ${new Date().toLocaleString()}`,
+    `DAIRY ASSISTANT EXPORT — ${new Date().toLocaleString('en-NZ', {timeZone:'Pacific/Auckland'})}`,
     "", "=== BAY TOTALS ===",
     ...BAYS.map(b=>`${b}: ${S.bays[b]||0}`),
     `TOTAL: ${bayTotal()}`,
