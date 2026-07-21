@@ -1029,38 +1029,64 @@ function renderCalvingWatch() {
       ).join('<span style="color:var(--border);margin:0 4px">·</span>');
       const calvedTotal = pendingCows.length;
 
-      calvedEl.innerHTML = pendingCows.map(c => {
-        const bayLabel = c.bay ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 5px;margin-left:4px">${c.bay==='Penicillin Paddock'?'P':c.bay.replace('Bay ','')}</span>` : '';
-
-        const calf1 = calfBlock(c, availTags, false);
-        const twinsSection = c.twins
-          ? `<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:10px">
-               <div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;color:var(--muted);margin-bottom:6px">TWIN CALF</div>
-               ${calfBlock(c, availTags, true)}
-             </div>`
+      // Helper: one-line button row for a calf
+      function calfLine(sex, calfType, keeperTag, dead, id, twin) {
+        const tParam = twin ? ',true' : ',false';
+        const typeOptions = sex === 'H' ? ['Keeper','Hereford','Bobby'] : sex === 'B' ? ['Bobby','Hereford'] : [];
+        const labelMap = {Keeper:'Keeper', Hereford:'HF', Bobby:'Bob'};
+        const typePart = typeOptions.map(t =>
+          `<button class="foot-btn${calfType===t?' selected':''}" style="font-size:.62rem;padding:3px 6px" onclick="event.stopPropagation();setCalvedType('${id}','${t}'${tParam})">${labelMap[t]||t}</button>`
+        ).join('');
+        const twinBtn = !twin
+          ? `<button class="foot-btn${c.twins?' selected':''}" style="font-size:.62rem;padding:3px 6px" onclick="event.stopPropagation();toggleTwins('${id}')">👯</button>`
           : '';
+        let keeperPicker = '';
+        if (calfType === 'Keeper') {
+          const tagsForPicker = availTags.concat(keeperTag ? [keeperTag] : []).sort((a,b)=>a-b);
+          keeperPicker = `<details style="display:inline-block;vertical-align:middle;margin-left:2px" onclick="event.stopPropagation()"><summary style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);cursor:pointer;list-style:none">${keeperTag?'🏷#'+keeperTag:'Tag▾'}</summary><div style="position:absolute;z-index:20;background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:6px;display:flex;flex-wrap:wrap;gap:3px;max-width:200px;max-height:120px;overflow-y:auto">${tagsForPicker.map(t=>`<button class="foot-btn${keeperTag===t?' selected':''}" style="padding:2px 6px;font-size:.62rem" onclick="event.stopPropagation();setKeeperTag('${id}',${t}${tParam})">${t}</button>`).join('')}</div></details>`;
+        }
+        return `<button class="foot-btn${sex==='H'?' selected':''}" style="font-size:.62rem;padding:3px 6px" onclick="event.stopPropagation();setCalvedSex('${id}','H'${tParam})">H</button>
+          <button class="foot-btn${sex==='B'?' selected':''}" style="font-size:.62rem;padding:3px 6px" onclick="event.stopPropagation();setCalvedSex('${id}','B'${tParam})">B</button>
+          ${typePart}${keeperPicker}
+          <button class="foot-btn${dead?' selected':''}" style="font-size:.62rem;padding:3px 6px;${dead?'background:var(--red);border-color:var(--red);color:#fff;':''}" onclick="event.stopPropagation();toggleDead('${id}'${tParam})">☠</button>
+          ${twinBtn}`;
+      }
 
-        const twinToggle = ''; // handled inline in calfBlock
-
-        // Fresh cows button — dead calf overrides keeper tag requirement
+      calvedEl.innerHTML = pendingCows.map(c => {
+        const expanded = _expandedCalved.has(c.id);
+        const bayLabel = c.bay ? (c.bay==='Penicillin Paddock'?'P':c.bay.replace('Bay ','')) : '?';
+        const lm = {Keeper:'K', Hereford:'HF', Bobby:'Bob'};
+        const statusSummary = c.sex
+          ? `${c.sex}·${lm[c.calfType]||c.calfType||'?'}${c.keeperTag?'#'+c.keeperTag:''}${c.calfDead?' ☠':''}${c.twins?` +${c.twinSex||'?'}·${lm[c.twinType]||c.twinType||'?'}${c.twinKeeperTag?'#'+c.twinKeeperTag:''}${c.twinDead?' ☠':''}`:''}`
+          : '—';
         const calf1Ready = c.sex && c.calfType && (c.calfDead || c.calfType !== 'Keeper' || c.keeperTag);
         const twinReady = !c.twins || (c.twinSex && c.twinType && (c.twinDead || c.twinType !== 'Keeper' || c.twinKeeperTag));
         const freshBtn = (calf1Ready && twinReady)
-          ? `<button class="btn${c.movedToFresh?' sec':''}" style="font-size:.68rem;padding:4px 10px;margin-top:10px" onclick="moveCalvedToFresh('${c.id}')">${c.movedToFresh ? '✓ In Fresh Cows' : '→ Fresh Cows'}</button>`
+          ? `<button class="btn${c.movedToFresh?' sec':''}" style="font-size:.62rem;padding:3px 8px;white-space:nowrap" onclick="event.stopPropagation();moveCalvedToFresh('${c.id}')">${c.movedToFresh?'✓':'→ Fresh'}</button>`
           : '';
+        const expandedContent = expanded ? `
+          <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
+            ${calfLine(c.sex, c.calfType, c.keeperTag, c.calfDead, c.id, false)}
+            ${freshBtn}
+          </div>
+          ${c.twins ? `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:4px;padding-top:4px;border-top:1px dashed var(--border)">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted)">TWIN:</span>
+            ${calfLine(c.twinSex, c.twinType, c.twinKeeperTag, c.twinDead, c.id, true)}
+          </div>` : ''}` : '';
 
-        return `<div style="border:1px solid var(--border);border-radius:4px;padding:10px 12px;margin-bottom:8px">
+        return `<div style="border:1px solid var(--border);border-radius:4px;padding:7px 10px;margin-bottom:4px" onclick="toggleCalvedExpand('${c.id}')">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <div><span class="tag">${c.tag}</span>${bayLabel}</div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:.68rem;color:var(--muted);font-family:'JetBrains Mono',monospace">${fmtDate(c.dateCalved)}</span>
-              <button class="del" onclick="removeFromCalved('${c.id}')">✕</button>
+            <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0;overflow:hidden">
+              <span class="tag" style="font-size:.85rem;flex-shrink:0">${c.tag}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 4px;flex-shrink:0">${bayLabel}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${statusSummary}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:6px" onclick="event.stopPropagation()">
+              ${!expanded ? freshBtn : ''}
+              <button class="del" onclick="event.stopPropagation();removeFromCalved('${c.id}')">✕</button>
             </div>
           </div>
-          <div style="margin-top:6px">${calf1}</div>
-          ${twinToggle}
-          ${twinsSection}
-          ${freshBtn}
+          ${expandedContent}
         </div>`;
       }).join('') + (pendingCows.length ? `
         <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;border-top:2px solid var(--border);padding-top:10px;margin-top:6px">
@@ -1612,6 +1638,8 @@ async function doImport() {
 
 // ── Calf tally (in-memory scratchpad, not persisted)
 const _tally = {H:0, B:0, HF:0};
+const _expandedCalved = new Set();
+function toggleCalvedExpand(id) { if (_expandedCalved.has(id)) _expandedCalved.delete(id); else _expandedCalved.add(id); renderCalvingWatch(); }
 function tallyInc(k) { _tally[k]++; tallyRender(); }
 function tallyDec(k) { if (_tally[k] > 0) _tally[k]--; tallyRender(); }
 function tallyReset() { _tally.H=0; _tally.B=0; _tally.HF=0; tallyRender(); }
