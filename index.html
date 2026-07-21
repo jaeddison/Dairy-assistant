@@ -986,14 +986,17 @@ function renderCalvingWatch() {
         const typeOptions = sex === 'H'
           ? ['Keeper','Hereford','Bobby']
           : sex === 'B' ? ['Bobby','Hereford'] : [];
+        const labelMap = {Keeper:'Keeper', Hereford:'HF', Bobby:'Bob'};
         const typePart = typeOptions.map(t =>
-          `<button class="foot-btn${calfType===t?' selected':''}" style="font-size:.66rem;padding:4px 7px" onclick="setCalvedType('${c.id}','${t}'${tParam})">${t}</button>`
+          `<button class="foot-btn${calfType===t?' selected':''}" style="font-size:.66rem;padding:4px 7px" onclick="setCalvedType('${c.id}','${t}'${tParam})">${labelMap[t]||t}</button>`
         ).join('');
+        const twinBtn = !twin ? `<button class="foot-btn${c.twins?' selected':''}" style="font-size:.66rem;padding:4px 7px" onclick="toggleTwins('${c.id}')">👯</button>` : '';
         const sexBtns = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           <button class="foot-btn${sex==='H'?' selected':''}" style="font-size:.66rem;padding:4px 7px" onclick="setCalvedSex('${c.id}','H'${tParam})">H</button>
           <button class="foot-btn${sex==='B'?' selected':''}" style="font-size:.66rem;padding:4px 7px" onclick="setCalvedSex('${c.id}','B'${tParam})">B</button>
           ${typePart}
           <button class="foot-btn${dead?' selected':''}" style="font-size:.66rem;padding:4px 7px;${dead?'background:var(--red);border-color:var(--red);color:#fff;':''}" onclick="toggleDead('${c.id}'${tParam})">☠</button>
+          ${twinBtn}
         </div>`;
 
         let typeBtns = ''; // now inline above, kept for structure
@@ -1037,9 +1040,7 @@ function renderCalvingWatch() {
              </div>`
           : '';
 
-        const twinToggle = c.sex
-          ? `<button class="foot-btn${c.twins?' selected':''}" style="margin-top:6px;font-size:.68rem" onclick="toggleTwins('${c.id}')">👯 Twins</button>`
-          : '';
+        const twinToggle = ''; // handled inline in calfBlock
 
         // Fresh cows button — dead calf overrides keeper tag requirement
         const calf1Ready = c.sex && c.calfType && (c.calfDead || c.calfType !== 'Keeper' || c.keeperTag);
