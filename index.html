@@ -982,22 +982,21 @@ function renderCalvingWatch() {
         const dead = twin ? c.twinDead : c.calfDead;
         const tParam = twin ? ',true' : ',false';
 
-        const sexBtns = `<div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="foot-btn${sex==='H'?' selected':''}" onclick="setCalvedSex('${c.id}','H'${tParam})">H</button>
-          <button class="foot-btn${sex==='B'?' selected':''}" onclick="setCalvedSex('${c.id}','B'${tParam})">B</button>
-          <button class="foot-btn${dead?' selected':''}" style="${dead?'background:var(--red);border-color:var(--red);color:#fff;':''}" onclick="toggleDead('${c.id}'${tParam})">☠ Dead</button>
+        // All calf detail buttons in one horizontal row
+        const typeOptions = sex === 'H'
+          ? ['Keeper','Hereford','Bobby']
+          : sex === 'B' ? ['Bobby','Hereford'] : [];
+        const typePart = typeOptions.map(t =>
+          `<button class="foot-btn${calfType===t?' selected':''}" style="font-size:.66rem;padding:4px 7px" onclick="setCalvedType('${c.id}','${t}'${tParam})">${t}</button>`
+        ).join('');
+        const sexBtns = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+          <button class="foot-btn${sex==='H'?' selected':''}" style="font-size:.66rem;padding:4px 7px" onclick="setCalvedSex('${c.id}','H'${tParam})">H</button>
+          <button class="foot-btn${sex==='B'?' selected':''}" style="font-size:.66rem;padding:4px 7px" onclick="setCalvedSex('${c.id}','B'${tParam})">B</button>
+          ${typePart}
+          <button class="foot-btn${dead?' selected':''}" style="font-size:.66rem;padding:4px 7px;${dead?'background:var(--red);border-color:var(--red);color:#fff;':''}" onclick="toggleDead('${c.id}'${tParam})">☠</button>
         </div>`;
 
-        let typeBtns = '';
-        if (sex === 'H') typeBtns = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-          <button class="foot-btn${calfType==='Keeper'?' selected':''}" onclick="setCalvedType('${c.id}','Keeper'${tParam})">Keeper</button>
-          <button class="foot-btn${calfType==='Hereford'?' selected':''}" onclick="setCalvedType('${c.id}','Hereford'${tParam})">Hereford</button>
-          <button class="foot-btn${calfType==='Bobby'?' selected':''}" onclick="setCalvedType('${c.id}','Bobby'${tParam})">Bobby</button>
-        </div>`;
-        else if (sex === 'B') typeBtns = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-          <button class="foot-btn${calfType==='Bobby'?' selected':''}" onclick="setCalvedType('${c.id}','Bobby'${tParam})">Bobby</button>
-          <button class="foot-btn${calfType==='Hereford'?' selected':''}" onclick="setCalvedType('${c.id}','Hereford'${tParam})">Hereford</button>
-        </div>`;
+        let typeBtns = ''; // now inline above, kept for structure
 
         let keeperPicker = '';
         if (calfType === 'Keeper') {
@@ -1057,7 +1056,7 @@ function renderCalvingWatch() {
               <button class="del" onclick="removeFromCalved('${c.id}')">✕</button>
             </div>
           </div>
-          <div style="margin-top:8px">${calf1}</div>
+          <div style="margin-top:6px">${calf1}</div>
           ${twinToggle}
           ${twinsSection}
           ${freshBtn}
