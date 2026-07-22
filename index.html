@@ -201,7 +201,7 @@ input:focus,select:focus{border-color:var(--accent)}
     <button class="tab" onclick="showTab(2)">Lame</button>
     <button class="tab" onclick="showTab(3)">Calving</button>
     <button class="tab" onclick="showTab(4)">Fresh Cows</button>
-    <button class="tab" onclick="showTab(5)">Export</button>
+    <button class="tab" onclick="showTab(5)">Settings</button>
   </div>
 
   <!-- TAB 0: BAYS -->
@@ -452,6 +452,12 @@ input:focus,select:focus{border-color:var(--accent)}
   <!-- TAB 5: EXPORT -->
   <div id="tab5" class="hidden">
     <div class="card">
+      <h2>Heifer Bay</h2>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Cows calved in this bay are treated as heifers in the colostrum dot counter — they start with 1 dot and are ready at 4 dots (one day earlier than cows).</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="heiferBayPicker"></div>
+    </div>
+
+    <div class="card">
       <h2>Export</h2>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Copy your current data and paste to Claude with any instructions. Claude sends back a DAIRY_IMPORT code to paste below.</p>
       <button class="btn" onclick="doExport()">Copy Export to Clipboard</button>
@@ -515,7 +521,7 @@ function freshState() {
     bays: {"Bay 1":0,"Bay 2":0,"Bay 3":0,"Bay 4":0,"Bay 5":0,"Bay 6":0,"Penicillin Paddock":0},
     treatments: [], newMoms: [], colostrumMob: [], milkingHerd: [],
     oad: [], peno: [], lameCows: [], lameArchive: [],
-    watchList: [], calvedList: [], calvingHistory: [], usedKeeperTags: [], cowDeaths: []
+    watchList: [], calvedList: [], calvingHistory: [], usedKeeperTags: [], cowDeaths: [], heiferBay: "Bay 6"
   };
 }
 
@@ -560,6 +566,7 @@ window.startFirestoreSync = function() {
       const d = snap.data();
       ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
         .forEach(k => { d[k] = d[k] || []; });
+      if (!d.heiferBay) d.heiferBay = 'Bay 6';
       S = d;
     }
     setSyncStatus('live');
@@ -646,11 +653,14 @@ function clearanceBadge(dateStr) {
   return `<span class="badge red">${diff}d</span>`;
 }
 
-function colAlert(dateStr) {
+function colAlert(dateStr, isHeifer) {
   const d = daysSince(dateStr);
-  if (d >= 5) return `<span class="badge red">⚠ ${d}d</span>`;
-  if (d >= 3) return `<span class="badge amber">${d}d</span>`;
-  return `<span class="badge green">${d}d</span>`;
+  const dots = Math.min(4, d + (isHeifer ? 1 : 0));
+  const dotStr = '●'.repeat(dots) + '○'.repeat(Math.max(0, 4 - dots));
+  if (dots >= 4) return `<span class="badge green">Ready ${dotStr}</span>`;
+  if (d >= 7) return `<span class="badge red">⚠ ${d}d ${dotStr}</span>`;
+  if (d >= 5) return `<span class="badge amber">${d}d ${dotStr}</span>`;
+  return `<span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted)">${dotStr}</span>`;
 }
 
 // ── Tabs
@@ -671,6 +681,20 @@ function render() {
   renderCalvingWatch();
   renderCalving();
   renderCowDeathList();
+  renderHeiferBayPicker();
+}
+
+function renderHeiferBayPicker() {
+  const el = document.getElementById('heiferBayPicker');
+  if (!el) return;
+  el.innerHTML = ['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6'].map(b =>
+    `<button class="foot-btn${S.heiferBay===b?' selected':''}" onclick="setHeiferBay('${b}')">${b.replace('Bay ','')}</button>`
+  ).join('');
+}
+
+function setHeiferBay(bay) {
+  S.heiferBay = bay;
+  save(); render();
 }
 
 function renderBays() {
@@ -792,6 +816,12 @@ function addToWatch() {
 
 function moveToCalved(id) {
   const cow = S.watchList.find(w => w.id === id); if (!cow) return;
+  if (S.calvedList.find(c => c.tag === cow.tag)) {
+    // Already in calved list — flash the existing entry
+    _expandedCalved.add(S.calvedList.find(c => c.tag === cow.tag).id);
+    renderCalvingWatch();
+    return;
+  }
   S.watchList = S.watchList.filter(w => w.id !== id);
   S.calvedList.push({ id: uid(), tag: cow.tag, dateCalved: todayStr(), bay: cow.location || null, sex: null, calfType: null, keeperTag: null, movedToFresh: false });
   save(); renderCalvingWatch();
@@ -810,13 +840,23 @@ function pickDirectBay(bay) {
 function addDirectCalved() {
   const raw = document.getElementById('directCalvedTag').value.trim();
   const date = document.getElementById('directCalvedDate').value || todayStr();
+  const inp = document.getElementById('directCalvedTag');
   if (!raw) return;
+  // Check for duplicate in calved list
+  if (S.calvedList.find(c => c.tag === raw)) {
+    if (inp) { inp.style.borderColor='var(--red)'; inp.style.background='#fce8e8'; setTimeout(()=>{inp.style.borderColor='';inp.style.background='';},1500); }
+    // Expand the duplicate so user can see it
+    const dup = S.calvedList.find(c => c.tag === raw);
+    _expandedCalved.add(dup.id);
+    renderCalvingWatch();
+    setTimeout(() => { if(inp) inp.focus(); }, 80);
+    return;
+  }
   S.watchList = S.watchList.filter(w => w.tag !== raw);
   S.calvedList.push({ id: uid(), tag: raw, dateCalved: date, bay: _directBay, sex: null, calfType: null, keeperTag: null, movedToFresh: false });
-  document.getElementById('directCalvedTag').value = '';
+  if (inp) inp.value = '';
   save(); renderCalvingWatch();
-  // Keep bay selected, refocus for next entry
-  setTimeout(() => { const i = document.getElementById('directCalvedTag'); if(i) i.focus(); }, 80);
+  setTimeout(() => { if(inp) inp.focus(); }, 80);
 }
 
 function removeFromWatch(id) {
@@ -1313,7 +1353,7 @@ function renderCalving() {
         <tr>
           <td><span class="tag">${c.tag}</span></td>
           <td>${fmtDate(c.dateEntered)}</td>
-          <td>${colAlert(c.dateEntered)}</td>
+          <td>${colAlert(c.dateEntered, c.bay === S.heiferBay)}</td>
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" onclick="colExit('${c.id}','milkingHerd')">Herd</button></td>
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" onclick="colExit('${c.id}','oad')">OAD</button></td>
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" onclick="colExit('${c.id}','peno')">Peno</button></td>
@@ -1609,6 +1649,7 @@ async function doImport() {
     if (!imported.bays) throw new Error();
     ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
       .forEach(k => { imported[k] = imported[k] || []; });
+    if (!imported.heiferBay) imported.heiferBay = 'Bay 6';
     // Pause the Firestore listener while we write
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
     S = imported;
