@@ -332,7 +332,10 @@ input:focus,select:focus{border-color:var(--accent)}
 
     <!-- Calved List -->
     <div class="card">
-      <h2>Calved <span id="calvedCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px">
+        <h2 style="border:none;padding:0;margin:0">Calved <span id="calvedCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
+        <button class="btn sec" style="padding:4px 10px;font-size:.72rem" onclick="copyCalvedList()">Copy list</button>
+      </div>
       <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px;font-style:italic">Record calf details then move cow to Fresh Cows.</p>
       <div id="calvedTable"></div>
       <div style="margin-top:10px" id="calvedClearBtn"></div>
@@ -1239,7 +1242,31 @@ function renderCalvingHistory() {
 }
 
 // ── Copy minerals to clipboard
-function copyMinerals() {
+function copyCalvedList() {
+  if (!S.calvedList.length) return;
+  const lines = [`Calved — ${new Date().toLocaleDateString('en-NZ',{timeZone:'Pacific/Auckland',day:'numeric',month:'short'})}`, ''];
+  // Group by bay
+  const groups = {};
+  S.calvedList.forEach(c => {
+    const b = c.bay || 'Unknown';
+    if (!groups[b]) groups[b] = [];
+    groups[b].push(c.tag);
+  });
+  const bayOrder = ['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Penicillin Paddock','Unknown'];
+  const ordered = [...bayOrder.filter(b=>groups[b]), ...Object.keys(groups).filter(k=>!bayOrder.includes(k))];
+  ordered.forEach(bay => {
+    lines.push(bay + ' (' + groups[bay].length + ')');
+    lines.push(groups[bay].join(', '));
+    lines.push('');
+  });
+  lines.push('Total: ' + S.calvedList.length);
+  navigator.clipboard?.writeText(lines.join('\n').trim()).then(() => {
+    const btn = document.querySelector('[onclick="copyCalvedList()"]');
+    if (btn) { btn.textContent = '✓ Copied'; setTimeout(()=>btn.textContent='Copy list',2000); }
+  });
+}
+
+
   const momCount = S.newMoms.length;
   const colCount = S.colostrumMob.length;
   const milkCount = S.milkingHerd.length;
@@ -1499,7 +1526,10 @@ function momToCol(id) {
   const m = S.newMoms.find(x=>x.id===id); if (!m) return;
   removeDuplicates(m.tag,'colostrumMob');
   S.newMoms = S.newMoms.filter(x=>x.id!==id);
-  S.colostrumMob.push({ id: uid(), tag: m.tag, dateEntered: todayStr() });
+  // Look up bay from calving history or calved list
+  const calvRec = (S.calvingHistory||[]).find(h=>h.tag===m.tag) || (S.calvedList||[]).find(h=>h.tag===m.tag);
+  const bay = calvRec ? calvRec.bay : null;
+  S.colostrumMob.push({ id: uid(), tag: m.tag, dateEntered: todayStr(), bay });
   save(); render();
 }
 function delCol(id) { S.colostrumMob = S.colostrumMob.filter(c=>c.id!==id); save(); render(); }
