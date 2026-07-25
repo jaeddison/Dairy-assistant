@@ -389,17 +389,6 @@ input:focus,select:focus{border-color:var(--accent)}
 
   <!-- TAB 4: FRESH COWS -->
   <div id="tab4" class="hidden">
-    <div class="card" style="background:var(--bg);border-color:var(--border)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Mineral requirements</div>
-          <div style="font-size:.78rem;color:var(--muted);margin-top:2px">New Moms · Colostrum · Milking Herd</div>
-        </div>
-        <button class="btn" onclick="copyMinerals()" style="padding:8px 14px;white-space:nowrap">Copy all</button>
-      </div>
-      <div id="mineralCopyStatus" style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--green);margin-top:6px;min-height:14px"></div>
-    </div>
-
     <div class="card">
       <h2>New Moms <span id="momCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <div id="momTable"></div>
@@ -425,7 +414,6 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card">
       <h2>Milking Herd <span id="milkCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
       <div id="milkTable"></div>
-      <div id="milkMineralBlock"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
         <input type="number" id="milkGraze" min="0" onchange="updateGraze('milk')" oninput="updateGraze('milk')">
@@ -695,7 +683,7 @@ function showTab(n) {
   for(let i=0;i<6;i++) document.getElementById("tab"+i).classList.toggle("hidden", i!==n);
   currentTab = n;
   render();
-  if (n === 4) setTimeout(initGraze, 50);
+  if (n === 4) { setTimeout(initGraze, 50); setTimeout(initMineralCalc, 50); }
   if (n === 3) renderCalvingWatch();
 }
 
@@ -1289,44 +1277,50 @@ function copyCalvedList() {
   });
 }
 
+function renderMineralCalc() {
+  // Pre-fill from headcounts if inputs are empty
+  const setIfEmpty = (id, val) => { const el=document.getElementById(id); if(el && el.value==='') el.value=val||0; };
+  // Just render results based on current input values
+  const get = id => parseInt(document.getElementById(id)?.value||0)||0;
+  const mom = get('mcNewMoms');
+  const col = get('mcColostrum');
+  const milk = get('mcMilking');
+  const oad = get('mcOad');
+  const el = document.getElementById('mineralCalcResult');
+  if (!el) return;
+  const rows = [];
+  if (mom > 0) rows.push(`<div style="margin-bottom:8px"><strong>New Moms (${mom})</strong> — on bale<br><span style="color:var(--muted)">MgO ${fmtMineral(mom*100)} · Lime ${fmtMineral(mom*200)}</span></div>`);
+  if (col > 0) rows.push(`<div style="margin-bottom:8px"><strong>Colostrum (${col})</strong><br><span style="color:var(--muted)">Morning: MgO ${fmtMineral(col*100)} · Lime ${fmtMineral(col*200)}</span><br><span style="color:var(--muted)">Afternoon: Lime ${fmtMineral(col*200)}</span></div>`);
+  if (milk > 0) rows.push(`<div style="margin-bottom:8px"><strong>Milking Herd (${milk})</strong> — fresh break<br><span style="color:var(--muted)">Lime ${fmtMineral(milk*100)}</span></div>`);
+  if (oad > 0) rows.push(`<div style="margin-bottom:8px"><strong>OAD (${oad})</strong> — fresh break<br><span style="color:var(--muted)">Lime ${fmtMineral(oad*100)}</span></div>`);
+  el.innerHTML = rows.length ? rows.join('') : '<span style="color:var(--muted);font-style:italic">Enter cow numbers above</span>';
+}
+
+function initMineralCalc() {
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val||0; };
+  set('mcNewMoms', S.newMoms.length);
+  set('mcColostrum', S.colostrumMob.length);
+  set('mcMilking', S.milkingHerd.length);
+  set('mcOad', (S.oad||[]).length);
+  renderMineralCalc();
+}
+
 function copyMinerals() {
-  const momCount = S.newMoms.length;
-  const colCount = S.colostrumMob.length;
-  const milkCount = S.milkingHerd.length;
-
-  const lines = ['Mineral requirements — ' + new Date().toLocaleDateString('en-NZ', {timeZone:'Pacific/Auckland', day:'numeric', month:'short'}), ''];
-
-  if (momCount > 0) {
-    lines.push('New Moms (' + momCount + ' cows) — on bale');
-    lines.push('MgO: ' + fmtMineral(momCount * 100));
-    lines.push('Lime: ' + fmtMineral(momCount * 200));
-    lines.push('');
-  }
-
-  if (colCount > 0) {
-    lines.push('Colostrum (' + colCount + ' cows)');
-    lines.push('Morning bale — MgO: ' + fmtMineral(colCount * 100) + ' · Lime: ' + fmtMineral(colCount * 200));
-    lines.push('Afternoon break — Lime: ' + fmtMineral(colCount * 200));
-    lines.push('');
-  }
-
-  if (milkCount > 0) {
-    lines.push('Milking herd (' + milkCount + ' cows) — fresh break');
-    lines.push('Lime: ' + fmtMineral(milkCount * 100));
-    lines.push('');
-  }
-
-  if (momCount === 0 && colCount === 0 && milkCount === 0) {
-    lines.push('No cows recorded yet.');
-  }
-
-  const text = lines.join('\n').trim();
-  navigator.clipboard?.writeText(text).then(() => {
+  const get = id => parseInt(document.getElementById(id)?.value||0)||0;
+  const mom = get('mcNewMoms');
+  const col = get('mcColostrum');
+  const milk = get('mcMilking');
+  const oad = get('mcOad');
+  const date = new Date().toLocaleDateString('en-NZ',{timeZone:'Pacific/Auckland',day:'numeric',month:'short'});
+  const lines = ['Mineral requirements — ' + date, ''];
+  if (mom > 0) { lines.push('New Moms (' + mom + ') — on bale'); lines.push('MgO: ' + fmtMineral(mom*100) + ' · Lime: ' + fmtMineral(mom*200)); lines.push(''); }
+  if (col > 0) { lines.push('Colostrum (' + col + ')'); lines.push('Morning: MgO ' + fmtMineral(col*100) + ' · Lime ' + fmtMineral(col*200)); lines.push('Afternoon: Lime ' + fmtMineral(col*200)); lines.push(''); }
+  if (milk > 0) { lines.push('Milking herd (' + milk + ') — fresh break'); lines.push('Lime: ' + fmtMineral(milk*100)); lines.push(''); }
+  if (oad > 0) { lines.push('OAD (' + oad + ') — fresh break'); lines.push('Lime: ' + fmtMineral(oad*100)); lines.push(''); }
+  if (!mom && !col && !milk && !oad) return;
+  navigator.clipboard?.writeText(lines.join('\n').trim()).then(() => {
     const el = document.getElementById('mineralCopyStatus');
-    if (el) { el.textContent = '✓ Copied to clipboard'; setTimeout(() => el.textContent = '', 2000); }
-  }).catch(() => {
-    const el = document.getElementById('mineralCopyStatus');
-    if (el) { el.textContent = '✕ Copy failed — try again'; setTimeout(() => el.textContent = '', 2000); }
+    if (el) { el.textContent = '✓ Copied'; setTimeout(() => el.textContent = '', 2000); }
   });
 }
 
@@ -1384,7 +1378,7 @@ function renderCalving() {
           <td><button class="btn sec" style="font-size:.7rem;padding:4px 8px" onclick="momToCol('${m.id}')">→ Colostrum</button></td>
           <td><button class="del" onclick="delMom('${m.id}')">✕</button></td>
         </tr>`).join("")}
-      </tbody></table>` + mineralBlock('newMoms', S.newMoms.length);
+      </tbody></table>`;
   }
 
   // Colostrum
@@ -1409,17 +1403,16 @@ function renderCalving() {
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" onclick="colExit('${c.id}','peno')">Peno</button></td>
           <td><button class="del" onclick="delCol('${c.id}')">✕</button></td>
         </tr>`).join("")}
-      </tbody></table>` + mineralBlock('colostrum', sorted.length);
+      </tbody></table>`;
   }
 
   // Milking mineral block
-  const milkMineralEl = document.getElementById('milkMineralBlock');
-  if (milkMineralEl) milkMineralEl.innerHTML = mineralBlock('milking', S.milkingHerd.length);
   renderGroup('milkingHerd','milkTable','milkCount');
   renderGroup('oad','oadTable','oadCount');
   renderGroup('peno','penoTable','penoCount');
   // Refresh graze calcs whenever cow numbers change
   ['col','milk','oad','peno'].forEach(k => updateGraze(k));
+  if (currentTab === 4) setTimeout(initMineralCalc, 50);
 }
 
 function renderGroup(key, tableId, countId) {
@@ -1429,15 +1422,29 @@ function renderGroup(key, tableId, countId) {
   const el = document.getElementById(tableId);
   if (!el) return;
   if (!arr.length) { el.innerHTML = ""; return; }
-  const sorted = [...arr].sort((a,b) => a.tag.localeCompare(b.tag, undefined, {numeric:true}));
-  el.innerHTML = `<table style="margin-top:8px">
-    <thead><tr><th>Tag</th><th></th></tr></thead>
-    <tbody>${sorted.map(c=>`
-      <tr>
-        <td><span class="tag">${c.tag}</span></td>
-        
-      </tr>`).join("")}
-    </tbody></table>`;
+
+  const today = todayStr();
+  const addedToday = arr.filter(c => c.dateAdded === today);
+  const rest = arr.filter(c => c.dateAdded !== today);
+  const sortFn = (a,b) => a.tag.localeCompare(b.tag, undefined, {numeric:true});
+
+  let html = '';
+  if (addedToday.length) {
+    html += `<div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--green);padding:6px 0 4px;display:flex;justify-content:space-between">
+      <span>Added today</span><span>${addedToday.length}</span></div>
+    <table style="margin-bottom:8px">
+      <tbody>${[...addedToday].sort(sortFn).map(c=>`
+        <tr><td><span class="tag">${c.tag}</span></td></tr>`).join("")}
+      </tbody></table>`;
+  }
+  if (rest.length) {
+    if (addedToday.length) html += `<div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;display:flex;justify-content:space-between"><span>Previous</span><span>${rest.length}</span></div>`;
+    html += `<table>
+      <tbody>${[...rest].sort(sortFn).map(c=>`
+        <tr><td><span class="tag">${c.tag}</span></td></tr>`).join("")}
+      </tbody></table>`;
+  }
+  el.innerHTML = html;
 }
 
 // ── Bay modal
@@ -1560,14 +1567,14 @@ function colExit(id, dest) {
   const c = S.colostrumMob.find(x=>x.id===id); if (!c) return;
   S.colostrumMob = S.colostrumMob.filter(x=>x.id!==id);
   if (!S[dest]) S[dest] = [];
-  S[dest].push({ id: uid(), tag: c.tag });
+  S[dest].push({ id: uid(), tag: c.tag, dateAdded: todayStr() });
   save(); render();
 }
 function addToGroup(group, inputId) {
   const raw = document.getElementById(inputId).value.trim();
   if (!raw) return;
   if (!S[group]) S[group] = [];
-  parseTags(raw).forEach(tag => { removeDuplicates(tag, group); S[group].push({ id: uid(), tag }); });
+  parseTags(raw).forEach(tag => { removeDuplicates(tag, group); S[group].push({ id: uid(), tag, dateAdded: todayStr() }); });
   document.getElementById(inputId).value = "";
   save(); render();
 }
@@ -1595,6 +1602,7 @@ function initGraze() {
   const fields = {col:'colGraze',milk:'milkGraze',oad:'oadGraze',peno:'penoGraze'};
   Object.entries(fields).forEach(([k,id]) => { const el = document.getElementById(id); if (el) el.value = G[k] || ''; });
   ['col','milk','oad','peno'].forEach(k => updateGraze(k));
+  if (currentTab === 4) setTimeout(initMineralCalc, 50);
 }
 
 // ── Remove Cow
