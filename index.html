@@ -299,15 +299,38 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card">
       <h2>Calf Tally <span style="font-size:.72rem;color:var(--muted);font-weight:400">— scratchpad only</span></h2>
       <div style="display:flex;gap:8px;justify-content:space-around;margin-top:4px;flex-wrap:wrap">
-        ${[['H','Heifer','var(--accent)'],['B','Bull','var(--accent)'],['HF','HF','var(--accent)'],['D','☠ Dead','var(--red)']].map(([k,label,col])=>`
         <div style="text-align:center">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">${label}</div>
-          <div style="font-family:'Libre Baskerville',serif;font-size:1.9rem;font-weight:700;color:${col};line-height:1" id="tally${k}">0</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Heifer</div>
+          <div style="font-family:'Libre Baskerville',serif;font-size:1.9rem;font-weight:700;color:var(--accent);line-height:1" id="tallyH">0</div>
           <div style="display:flex;gap:4px;justify-content:center;margin-top:6px">
-            <button onclick="tallyDec('${k}')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:var(--muted)">−</button>
-            <button onclick="tallyInc('${k}')" style="background:${col};border:none;border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:#fff">+</button>
+            <button onclick="tallyDec('H')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:var(--muted)">−</button>
+            <button onclick="tallyInc('H')" style="background:var(--accent);border:none;border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:#fff">+</button>
           </div>
-        </div>`).join('')}
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Bull</div>
+          <div style="font-family:'Libre Baskerville',serif;font-size:1.9rem;font-weight:700;color:var(--accent);line-height:1" id="tallyB">0</div>
+          <div style="display:flex;gap:4px;justify-content:center;margin-top:6px">
+            <button onclick="tallyDec('B')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:var(--muted)">−</button>
+            <button onclick="tallyInc('B')" style="background:var(--accent);border:none;border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:#fff">+</button>
+          </div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">HF</div>
+          <div style="font-family:'Libre Baskerville',serif;font-size:1.9rem;font-weight:700;color:var(--accent);line-height:1" id="tallyHF">0</div>
+          <div style="display:flex;gap:4px;justify-content:center;margin-top:6px">
+            <button onclick="tallyDec('HF')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:var(--muted)">−</button>
+            <button onclick="tallyInc('HF')" style="background:var(--accent);border:none;border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:#fff">+</button>
+          </div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">☠ Dead</div>
+          <div style="font-family:'Libre Baskerville',serif;font-size:1.9rem;font-weight:700;color:var(--red);line-height:1" id="tallyD">0</div>
+          <div style="display:flex;gap:4px;justify-content:center;margin-top:6px">
+            <button onclick="tallyDec('D')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:var(--muted)">−</button>
+            <button onclick="tallyInc('D')" style="background:var(--red);border:none;border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:#fff">+</button>
+          </div>
+        </div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">
         <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted)">Total: <strong id="tallyTotal" style="color:var(--accent)">0</strong></span>
