@@ -297,37 +297,26 @@ input:focus,select:focus{border-color:var(--accent)}
 
     <!-- Calf Tally -->
     <div class="card">
-      <h2>Calf Tally <span style="font-size:.72rem;color:var(--muted);font-weight:400">— scratchpad, not saved</span></h2>
-      <div style="display:flex;gap:12px;justify-content:space-around;margin-top:4px;flex-wrap:wrap">
+      <h2>Calf Tally <span style="font-size:.72rem;color:var(--muted);font-weight:400">— scratchpad only</span></h2>
+      <div style="display:flex;gap:8px;justify-content:space-around;margin-top:4px;flex-wrap:wrap">
+        ${[['H','Heifer','var(--accent)'],['B','Bull','var(--accent)'],['HF','HF','var(--accent)'],['D','☠ Dead','var(--red)']].map(([k,label,col])=>`
         <div style="text-align:center">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Heifer</div>
-          <div style="font-family:'Libre Baskerville',serif;font-size:2.2rem;font-weight:700;color:var(--accent);line-height:1" id="tallyH">0</div>
-          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
-            <button onclick="tallyDec('H')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:var(--muted)">−</button>
-            <button onclick="tallyInc('H')" style="background:var(--accent);border:none;border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:#fff">+</button>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">${label}</div>
+          <div style="font-family:'Libre Baskerville',serif;font-size:1.9rem;font-weight:700;color:${col};line-height:1" id="tally${k}">0</div>
+          <div style="display:flex;gap:4px;justify-content:center;margin-top:6px">
+            <button onclick="tallyDec('${k}')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:var(--muted)">−</button>
+            <button onclick="tallyInc('${k}')" style="background:${col};border:none;border-radius:3px;width:30px;height:30px;font-size:1.1rem;cursor:pointer;color:#fff">+</button>
           </div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Bull</div>
-          <div style="font-family:'Libre Baskerville',serif;font-size:2.2rem;font-weight:700;color:var(--accent);line-height:1" id="tallyB">0</div>
-          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
-            <button onclick="tallyDec('B')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:var(--muted)">−</button>
-            <button onclick="tallyInc('B')" style="background:var(--accent);border:none;border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:#fff">+</button>
-          </div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Hereford</div>
-          <div style="font-family:'Libre Baskerville',serif;font-size:2.2rem;font-weight:700;color:var(--accent);line-height:1" id="tallyHF">0</div>
-          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
-            <button onclick="tallyDec('HF')" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:var(--muted)">−</button>
-            <button onclick="tallyInc('HF')" style="background:var(--accent);border:none;border-radius:3px;width:36px;height:36px;font-size:1.2rem;cursor:pointer;color:#fff">+</button>
-          </div>
-        </div>
+        </div>`).join('')}
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">
         <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted)">Total: <strong id="tallyTotal" style="color:var(--accent)">0</strong></span>
-        <button onclick="tallyReset()" class="btn sec" style="padding:5px 12px;font-size:.75rem">Reset</button>
+        <div style="display:flex;gap:6px">
+          <button onclick="tallySave()" class="btn" style="padding:5px 12px;font-size:.72rem">Save &amp; reset</button>
+          <button onclick="tallyReset()" class="btn sec" style="padding:5px 12px;font-size:.72rem">Reset</button>
+        </div>
       </div>
+      <div id="tallySnapshots" style="margin-top:6px"></div>
     </div>
 
     <!-- Calved List -->
@@ -454,6 +443,17 @@ input:focus,select:focus{border-color:var(--accent)}
 
   <!-- TAB 5: EXPORT -->
   <div id="tab5" class="hidden">
+    <div class="card">
+      <h2>Cow Search</h2>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Look up any tag number to see current location, calving record, treatments and lame history.</p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="cowSearchInput" placeholder="Tag #" inputmode="numeric" style="width:90px" onkeydown="if(event.key==='Enter')cowSearch()">
+        <button class="btn" onclick="cowSearch()">Search</button>
+        <button class="btn sec" onclick="document.getElementById('cowSearchInput').value='';document.getElementById('cowSearchResult').innerHTML=''">Clear</button>
+      </div>
+      <div id="cowSearchResult" style="margin-top:14px"></div>
+    </div>
+
     <div class="card">
       <h2>Heifer Bay</h2>
       <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Cows calved in this bay are treated as heifers in the colostrum dot counter — they start with 1 dot and are ready at 4 dots (one day earlier than cows).</p>
@@ -1709,21 +1709,100 @@ async function doImport() {
 }
 
 // ── Calf tally (in-memory scratchpad, not persisted)
-const _tally = {H:0, B:0, HF:0};
+const _tally = {H:0, B:0, HF:0, D:0};
+const _tallySnapshots = [];
 const _expandedCalved = new Set();
 function toggleCalvedExpand(id) { if (_expandedCalved.has(id)) _expandedCalved.delete(id); else _expandedCalved.add(id); renderCalvingWatch(); }
 function tallyInc(k) { _tally[k]++; tallyRender(); }
 function tallyDec(k) { if (_tally[k] > 0) _tally[k]--; tallyRender(); }
-function tallyReset() { _tally.H=0; _tally.B=0; _tally.HF=0; tallyRender(); }
+function tallyReset() { _tally.H=0; _tally.B=0; _tally.HF=0; _tally.D=0; tallyRender(); }
+function tallySave() {
+  const snap = `H:${_tally.H} · B:${_tally.B} · HF:${_tally.HF} · ☠:${_tally.D} · Total:${_tally.H+_tally.B+_tally.HF+_tally.D}`;
+  _tallySnapshots.push({id: uid(), text: snap});
+  tallyReset();
+  tallyRender();
+}
+function tallyDelSnap(id) {
+  const idx = _tallySnapshots.findIndex(s=>s.id===id);
+  if (idx !== -1) _tallySnapshots.splice(idx,1);
+  tallyRender();
+}
 function tallyRender() {
-  const h = document.getElementById('tallyH');
-  const b = document.getElementById('tallyB');
-  const hf = document.getElementById('tallyHF');
+  ['H','B','HF','D'].forEach(k => { const el=document.getElementById('tally'+k); if(el) el.textContent=_tally[k]; });
   const tot = document.getElementById('tallyTotal');
-  if (h) h.textContent = _tally.H;
-  if (b) b.textContent = _tally.B;
-  if (hf) hf.textContent = _tally.HF;
-  if (tot) tot.textContent = _tally.H + _tally.B + _tally.HF;
+  if (tot) tot.textContent = _tally.H+_tally.B+_tally.HF+_tally.D;
+  const snapEl = document.getElementById('tallySnapshots');
+  if (snapEl) {
+    snapEl.innerHTML = _tallySnapshots.length ? _tallySnapshots.map(s=>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed var(--border);font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted)">
+        <span>${s.text}</span>
+        <button class="del" onclick="tallyDelSnap('${s.id}')">✕</button>
+      </div>`
+    ).join('') : '';
+  }
+}
+
+// ── Cow Search
+function cowSearch() {
+  const tag = document.getElementById('cowSearchInput').value.trim();
+  const el = document.getElementById('cowSearchResult');
+  if (!tag || !el) return;
+
+  const rows = [];
+
+  // Current location
+  const locations = [];
+  if (S.newMoms.find(x=>x.tag===tag)) locations.push('New Moms');
+  if (S.colostrumMob.find(x=>x.tag===tag)) { const c=S.colostrumMob.find(x=>x.tag===tag); locations.push(`Colostrum (${daysSince(c.dateEntered)}d)`); }
+  if (S.milkingHerd.find(x=>x.tag===tag)) locations.push('Milking Herd');
+  if (S.oad.find(x=>x.tag===tag)) locations.push('OAD');
+  if (S.peno.find(x=>x.tag===tag)) locations.push('Peno');
+  if (S.watchList.find(x=>x.tag===tag)) { const w=S.watchList.find(x=>x.tag===tag); locations.push(`Watch List (${w.status}, ${w.location||'?'})`); }
+  if (S.calvedList.find(x=>x.tag===tag)) locations.push('Calved List (pending)');
+  if (S.lameCows.find(x=>x.tag===tag)) locations.push('Lame Register');
+  // Check bays via treatments
+  const tx = S.treatments.find(x=>x.tag===tag);
+  if (tx) locations.push(`${tx.location} (treatment)`);
+
+  rows.push(`<div style="margin-bottom:10px"><div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Current Location</div>
+    <div style="font-size:.85rem">${locations.length ? locations.join(' · ') : '<span style="color:var(--muted);font-style:italic">Not found in any active group</span>'}</div></div>`);
+
+  // Calving history
+  const calvRecs = (S.calvingHistory||[]).filter(x=>x.tag===tag);
+  if (calvRecs.length) {
+    const lm = {Keeper:'Keeper', Hereford:'HF', Bobby:'Bob'};
+    rows.push(`<div style="margin-bottom:10px"><div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Calving Record</div>
+      ${calvRecs.map(c=>`<div style="font-size:.82rem">${fmtDate(c.dateCalved)} · Bay ${c.bay?c.bay.replace('Bay ',''):'?'} · ${c.sex||'?'}·${lm[c.calfType]||c.calfType||'?'}${c.keeperTag?' #'+c.keeperTag:''}${c.calfDead?' ☠':''}${c.twins?` + ${c.twinSex||'?'}·${lm[c.twinType]||c.twinType||'?'}${c.twinKeeperTag?' #'+c.twinKeeperTag:''}${c.twinDead?' ☠':''} (twins)`:''}</div>`).join('')}
+    </div>`);
+  }
+
+  // Treatments
+  const txAll = S.treatments.filter(x=>x.tag===tag);
+  if (txAll.length) {
+    rows.push(`<div style="margin-bottom:10px"><div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Treatments</div>
+      ${txAll.map(t=>`<div style="font-size:.82rem">${t.treatment} · ${t.location} · Clear: ${fmtDate(t.meatWithholdDate)} ${clearanceBadge(t.meatWithholdDate)}</div>`).join('')}
+    </div>`);
+  }
+
+  // Lame records
+  const lameActive = S.lameCows.filter(x=>x.tag===tag);
+  const lameArch = S.lameArchive.filter(x=>x.tag===tag);
+  if (lameActive.length || lameArch.length) {
+    const FOOT = {LF:'Left Front',RF:'Right Front',LR:'Left Rear',RR:'Right Rear'};
+    rows.push(`<div style="margin-bottom:10px"><div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Lame History</div>
+      ${lameActive.map(l=>`<div style="font-size:.82rem">Active · ${l.feet.map(f=>FOOT[f]).join(', ')} · ${l.location}</div>`).join('')}
+      ${lameArch.map(l=>`<div style="font-size:.82rem;color:var(--muted)">Cleared ${fmtDate(l.clearedDate)} · ${l.feet.map(f=>FOOT[f]).join(', ')} · ${l.location}</div>`).join('')}
+    </div>`);
+  }
+
+  // Cow deaths
+  const death = (S.cowDeaths||[]).find(x=>x.tag===tag);
+  if (death) rows.push(`<div style="margin-bottom:10px"><div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--red);margin-bottom:4px">⚠ Cow Death Recorded</div>
+    <div style="font-size:.82rem">${fmtDate(death.date)}${death.notes?' · '+death.notes:''}</div></div>`);
+
+  el.innerHTML = rows.length
+    ? `<div style="border:1px solid var(--border);border-radius:3px;padding:12px;background:var(--bg)"><div style="font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600;margin-bottom:10px;color:var(--accent)">Tag ${tag}</div>${rows.join('')}</div>`
+    : `<p style="color:var(--muted);font-style:italic;font-size:.82rem">No records found for tag ${tag}</p>`;
 }
 
 // ── Keyboard
