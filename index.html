@@ -1032,7 +1032,7 @@ function renderCalvingWatch() {
               <tr>
                 <td><span class="tag">${w.tag}</span></td>
                 <td><span class="badge ${WATCH_COLOURS[w.status]}">${w.status}</span></td>
-                <td><button class="btn sec" style="font-size:.68rem;padding:3px 8px" onclick="moveToCalved('${w.id}')">→ Calved</button></td>
+                <td><button class="btn sec" style="font-size:.68rem;padding:3px 8px" data-moveid="wc-${w.id}" onclick="confirmMove(this,'→ Calved',()=>moveToCalved('${w.id}'))">→ Calved</button></td>
                 <td><button class="del" onclick="removeFromWatch('${w.id}')">✕</button></td>
               </tr>`).join('')}
             </tbody>
@@ -1146,7 +1146,7 @@ function renderCalvingWatch() {
         const calf1Ready = c.sex && c.calfType && (c.calfDead || c.calfType !== 'Keeper' || c.keeperTag);
         const twinReady = !c.twins || (c.twinSex && c.twinType && (c.twinDead || c.twinType !== 'Keeper' || c.twinKeeperTag));
         const freshBtn = (calf1Ready && twinReady)
-          ? `<button class="btn${c.movedToFresh?' sec':''}" style="font-size:.62rem;padding:3px 8px;white-space:nowrap" onclick="event.stopPropagation();moveCalvedToFresh('${c.id}')">${c.movedToFresh?'✓':'→ Fresh'}</button>`
+          ? `<button class="btn${c.movedToFresh?' sec':''}" style="font-size:.62rem;padding:3px 8px;white-space:nowrap" data-moveid="cf-${c.id}" onclick="event.stopPropagation();confirmMove(this,'→ Fresh',()=>moveCalvedToFresh('${c.id}'))">${c.movedToFresh?'✓':'→ Fresh'}</button>`
           : '';
         const expandedContent = expanded ? `
           <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
@@ -1409,7 +1409,7 @@ function renderCalving() {
           <td><span class="tag">${m.tag}</span></td>
           <td>${fmtDate(m.dateLeftBarn)}</td>
           <td>${daysSince(m.dateLeftBarn)}d</td>
-          <td><button class="btn sec" style="font-size:.7rem;padding:4px 8px" onclick="momToCol('${m.id}')">→ Colostrum</button></td>
+          <td><button class="btn sec" style="font-size:.7rem;padding:4px 8px" data-moveid="mc-${m.id}" onclick="confirmMove(this,'→ Colostrum',()=>momToCol('${m.id}'))">→ Colostrum</button></td>
           <td><button class="del" onclick="delMom('${m.id}')">✕</button></td>
         </tr>`).join("")}
       </tbody></table>`;
@@ -1432,9 +1432,9 @@ function renderCalving() {
           <td><span class="tag">${c.tag}</span></td>
           <td>${fmtDate(c.dateEntered)}</td>
           <td>${colAlert(c.dateEntered, c.bay === S.heiferBay)}</td>
-          <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" onclick="colExit('${c.id}','milkingHerd')">Herd</button></td>
-          <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" onclick="colExit('${c.id}','oad')">OAD</button></td>
-          <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" onclick="colExit('${c.id}','peno')">Peno</button></td>
+          <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="ch-${c.id}" onclick="confirmMove(this,'Herd',()=>colExit('${c.id}','milkingHerd'))">Herd</button></td>
+          <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="co-${c.id}" onclick="confirmMove(this,'OAD',()=>colExit('${c.id}','oad'))">OAD</button></td>
+          <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="cp-${c.id}" onclick="confirmMove(this,'Peno',()=>colExit('${c.id}','peno'))">Peno</button></td>
           <td><button class="del" onclick="delCol('${c.id}')">✕</button></td>
         </tr>`).join("")}
       </tbody></table>`;
@@ -1775,8 +1775,41 @@ async function doImport() {
 
 // ── Calf tally (in-memory scratchpad, not persisted)
 const _tally = {H:0, B:0, HF:0, D:0};
+const _pendingMoves = {}; // id -> {timer, btn}
 const _tallySnapshots = [];
 const _expandedCalved = new Set();
+// ── Two-tap move confirmation
+function confirmMove(btnEl, label, action) {
+  const id = btnEl.getAttribute('data-moveid');
+  if (_pendingMoves[id]) {
+    // Second tap — confirm
+    clearTimeout(_pendingMoves[id].timer);
+    delete _pendingMoves[id];
+    btnEl.style.background = 'var(--green)';
+    btnEl.style.borderColor = 'var(--green)';
+    btnEl.style.color = '#fff';
+    btnEl.textContent = '✓';
+    setTimeout(() => action(), 300);
+  } else {
+    // First tap — pending
+    _pendingMoves[id] = {
+      timer: setTimeout(() => {
+        delete _pendingMoves[id];
+        if (btnEl) {
+          btnEl.style.background = '';
+          btnEl.style.borderColor = '';
+          btnEl.style.color = '';
+          btnEl.textContent = label;
+        }
+      }, 3000)
+    };
+    btnEl.style.background = '#f5ede0';
+    btnEl.style.borderColor = 'var(--amber)';
+    btnEl.style.color = 'var(--amber)';
+    btnEl.textContent = label + '?';
+  }
+}
+
 function updateCalvedDate(id, newDate) {
   const c = S.calvedList.find(x=>x.id===id); if (!c || !newDate) return;
   c.dateCalved = newDate;
