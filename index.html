@@ -953,7 +953,7 @@ function toggleDead(id, twin) {
 function moveCalvedToFresh(id) {
   const c = S.calvedList.find(x => x.id === id); if (!c) return;
   removeDuplicates(c.tag, 'newMoms');
-  S.newMoms.push({ id: uid(), tag: c.tag, dateLeftBarn: todayStr() });
+  S.newMoms.push({ id: uid(), tag: c.tag, dateLeftBarn: todayStr(), gold: c.gold||false });
   c.movedToFresh = true;
   // Deduct from bay count if bay is recorded
   if (c.bay && S.bays[c.bay] !== undefined) {
@@ -1136,22 +1136,34 @@ function renderCalvingWatch() {
           ${twinBtn}`;
       }
 
-      calvedEl.innerHTML = pendingCows.map(c => {
+      // Group by bay, maintain entry order within each bay
+      const bayOrder = ['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Penicillin Paddock','Unknown'];
+      const calvedGroups = {};
+      pendingCows.forEach(c => {
+        const b = c.bay || 'Unknown';
+        if (!calvedGroups[b]) calvedGroups[b] = [];
+        calvedGroups[b].push(c);
+      });
+      const orderedBays = [...bayOrder.filter(b=>calvedGroups[b]), ...Object.keys(calvedGroups).filter(k=>!bayOrder.includes(k))];
+
+      const renderCalvedCard = c => {
         const expanded = _expandedCalved.has(c.id);
         const bayLabel = c.bay ? (c.bay==='Penicillin Paddock'?'P':c.bay.replace('Bay ','')) : '?';
         const lm = {Keeper:'K', Hereford:'HF', Bobby:'Bob'};
+        const goldBadge = c.gold ? ' 🥛' : '';
         const statusSummary = c.sex
-          ? `${c.sex}·${lm[c.calfType]||c.calfType||'?'}${c.keeperTag?'#'+c.keeperTag:''}${c.calfDead?' ☠':''}${c.twins?` +${c.twinSex||'?'}·${lm[c.twinType]||c.twinType||'?'}${c.twinKeeperTag?'#'+c.twinKeeperTag:''}${c.twinDead?' ☠':''}`:''}`
-          : '—';
+          ? `${c.sex}·${lm[c.calfType]||c.calfType||'?'}${c.keeperTag?'#'+c.keeperTag:''}${c.calfDead?' ☠':''}${c.twins?` +${c.twinSex||'?'}·${lm[c.twinType]||c.twinType||'?'}${c.twinKeeperTag?'#'+c.twinKeeperTag:''}${c.twinDead?' ☠':''}`:''}`+goldBadge
+          : goldBadge || '—';
         const calf1Ready = c.sex && c.calfType && (c.calfDead || c.calfType !== 'Keeper' || c.keeperTag);
         const twinReady = !c.twins || (c.twinSex && c.twinType && (c.twinDead || c.twinType !== 'Keeper' || c.twinKeeperTag));
         const freshBtn = (calf1Ready && twinReady)
           ? `<button class="btn${c.movedToFresh?' sec':''}" style="font-size:.62rem;padding:3px 8px;white-space:nowrap" data-moveid="cf-${c.id}" onclick="event.stopPropagation();confirmMove(this,'→ Fresh',()=>moveCalvedToFresh('${c.id}'))">${c.movedToFresh?'✓':'→ Fresh'}</button>`
           : '';
         const expandedContent = expanded ? `
-          <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
             <span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);flex-shrink:0">📅</span>
             <input type="date" value="${c.dateCalved}" style="font-family:'JetBrains Mono',monospace;font-size:.62rem;padding:2px 4px;border:1px solid var(--border);border-radius:2px;background:var(--bg);color:var(--text);width:120px" onchange="event.stopPropagation();updateCalvedDate('${c.id}',this.value)" onclick="event.stopPropagation()">
+            <button class="foot-btn${c.gold?' selected':''}" style="font-size:.62rem;padding:3px 8px;${c.gold?'background:#b8860b;border-color:#b8860b;color:#fff;':''}" onclick="event.stopPropagation();toggleGold('${c.id}')">🥛 Gold</button>
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
             ${calfLine(c.sex, c.calfType, c.keeperTag, c.calfDead, c.id, false, c.twins)}
@@ -1176,6 +1188,16 @@ function renderCalvingWatch() {
             </div>
           </div>
           ${expandedContent}
+        </div>`;
+      };
+
+      calvedEl.innerHTML = orderedBays.map(bay => {
+        const cows = calvedGroups[bay];
+        return `<div style="margin-bottom:12px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:4px;display:flex;justify-content:space-between">
+            <span>${bay}</span><span>${cows.length}</span>
+          </div>
+          ${cows.map(renderCalvedCard).join('')}
         </div>`;
       }).join('') + (pendingCows.length ? `
         <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;border-top:2px solid var(--border);padding-top:10px;margin-top:6px">
@@ -1808,6 +1830,18 @@ function confirmMove(btnEl, label, action) {
     btnEl.style.color = 'var(--amber)';
     btnEl.textContent = label + '?';
   }
+}
+
+function toggleGold(id) {
+  const c = S.calvedList.find(x=>x.id===id); if (!c) return;
+  c.gold = !c.gold;
+  // carry to calving history
+  const h = (S.calvingHistory||[]).find(x=>x.id===id);
+  if (h) h.gold = c.gold;
+  // carry to newMoms if already moved
+  const m = S.newMoms.find(x=>x.tag===c.tag);
+  if (m) m.gold = c.gold;
+  save(); renderCalvingWatch(); renderCalving();
 }
 
 function updateCalvedDate(id, newDate) {
