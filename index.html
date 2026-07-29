@@ -259,6 +259,9 @@ input:focus,select:focus{border-color:var(--accent)}
   <!-- TAB 3: CALVING -->
   <div id="tab3" class="hidden">
 
+    <!-- Season Summary Banner -->
+    <div id="calvingSummaryBanner" style="background:var(--accent);border-radius:4px;padding:10px 14px;margin-bottom:14px;display:flex;gap:0;justify-content:space-around;flex-wrap:wrap"></div>
+
     <!-- Watch List -->
     <div class="card">
       <h2>Watch List <span id="watchCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
@@ -1002,7 +1005,50 @@ function removeFromCalved(id) {
 
 const WATCH_COLOURS = { Calving: 'red', Close: 'amber', Other: 'green' };
 
+function renderCalvingSummary() {
+  const el = document.getElementById('calvingSummaryBanner');
+  if (!el) return;
+  // Combine calving history and active calved list, deduplicate by id
+  const allRecs = [...(S.calvingHistory||[])];
+  (S.calvedList||[]).forEach(c => { if (!allRecs.find(h=>h.id===c.id)) allRecs.push(c); });
+
+  let bobbies=0, herefords=0, keepers=0, dead=0;
+  const keeperTags = [];
+
+  allRecs.forEach(c => {
+    // Calf 1
+    if (c.calfType==='Bobby') bobbies++;
+    else if (c.calfType==='Hereford') herefords++;
+    else if (c.calfType==='Keeper') { keepers++; if(c.keeperTag) keeperTags.push(Number(c.keeperTag)); }
+    if (c.calfDead) dead++;
+    // Twin
+    if (c.twins) {
+      if (c.twinType==='Bobby') bobbies++;
+      else if (c.twinType==='Hereford') herefords++;
+      else if (c.twinType==='Keeper') { keepers++; if(c.twinKeeperTag) keeperTags.push(Number(c.twinKeeperTag)); }
+      if (c.twinDead) dead++;
+    }
+  });
+
+  const highestTag = keeperTags.length ? Math.max(...keeperTags) : '—';
+  const total = bobbies + herefords + keepers;
+
+  const col = (label, value, sub) => `<div style="text-align:center;padding:4px 8px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.65);margin-bottom:2px">${label}</div>
+    <div style="font-family:'Libre Baskerville',serif;font-size:1.4rem;font-weight:700;color:#fff;line-height:1">${value}</div>
+    ${sub ? `<div style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:rgba(255,255,255,.55);margin-top:1px">${sub}</div>` : ''}
+  </div>`;
+
+  el.innerHTML = 
+    col('Total', total, '') +
+    col('Bobby', bobbies, '') +
+    col('HF', herefords, '') +
+    col('Keeper', keepers, `high #${highestTag}`) +
+    col('☠ Dead', dead, '');
+}
+
 function renderCalvingWatch() {
+  renderCalvingSummary();
   // Watch list
   const watchC = document.getElementById('watchCount');
   const watchEl = document.getElementById('watchTable');
@@ -1310,23 +1356,35 @@ function renderCalvingHistory() {
 
 // ── Copy minerals to clipboard
 function copyCalvedList() {
-  if (!S.calvedList.length) return;
-  const lines = [`Calved — ${new Date().toLocaleDateString('en-NZ',{timeZone:'Pacific/Auckland',day:'numeric',month:'short'})}`, ''];
-  // Group by bay
-  const groups = {};
-  S.calvedList.forEach(c => {
-    const b = c.bay || 'Unknown';
-    if (!groups[b]) groups[b] = [];
-    groups[b].push(c.tag);
-  });
+  const date = new Date().toLocaleDateString('en-NZ',{timeZone:'Pacific/Auckland',day:'numeric',month:'short'});
+  const lines = [`Calving — ${date}`, ''];
   const bayOrder = ['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Penicillin Paddock','Unknown'];
-  const ordered = [...bayOrder.filter(b=>groups[b]), ...Object.keys(groups).filter(k=>!bayOrder.includes(k))];
-  ordered.forEach(bay => {
-    lines.push(bay + ' (' + groups[bay].length + ')');
-    lines.push(groups[bay].join(', '));
+
+  // Calved list grouped by bay
+  if (S.calvedList.length) {
+    lines.push('CALVED');
+    const groups = {};
+    S.calvedList.forEach(c => { const b=c.bay||'Unknown'; if(!groups[b])groups[b]=[]; groups[b].push(c); });
+    const ordered = [...bayOrder.filter(b=>groups[b]),...Object.keys(groups).filter(k=>!bayOrder.includes(k))];
+    ordered.forEach(bay => {
+      lines.push(`${bay} (${groups[bay].length}): ${groups[bay].map(c=>c.tag).join(', ')}`);
+    });
     lines.push('');
-  });
-  lines.push('Total: ' + S.calvedList.length);
+  }
+
+  // Watch list grouped by bay
+  if (S.watchList.length) {
+    lines.push('WATCH');
+    const wgroups = {};
+    S.watchList.forEach(w => { const b=w.location||'Unknown'; if(!wgroups[b])wgroups[b]=[]; wgroups[b].push(w); });
+    const wordered = [...bayOrder.filter(b=>wgroups[b]),...Object.keys(wgroups).filter(k=>!bayOrder.includes(k))];
+    wordered.forEach(bay => {
+      lines.push(`${bay} (${wgroups[bay].length}): ${wgroups[bay].map(w=>w.tag+' ('+w.status+')').join(', ')}`);
+    });
+    lines.push('');
+  }
+
+  if (!S.calvedList.length && !S.watchList.length) return;
   navigator.clipboard?.writeText(lines.join('\n').trim()).then(() => {
     const btn = document.querySelector('[onclick="copyCalvedList()"]');
     if (btn) { btn.textContent = '✓ Copied'; setTimeout(()=>btn.textContent='Copy list',2000); }
