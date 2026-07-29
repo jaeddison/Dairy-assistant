@@ -700,14 +700,20 @@ function clearanceBadge(dateStr) {
   return `<span class="badge red">${diff}d</span>`;
 }
 
-function colAlert(dateStr, isHeifer) {
-  const d = daysSince(dateStr);
-  const dots = Math.min(4, d + (isHeifer ? 1 : 0));
+function colAlert(dateEnteredStr, isHeifer, tag) {
+  // Dots based on dateCalved from history — not dateEntered
+  const calvRec = (S.calvingHistory||[]).find(h=>h.tag===tag) || (S.calvedList||[]).find(h=>h.tag===tag);
+  const dotDate = calvRec ? calvRec.dateCalved : dateEnteredStr;
+  const dCalved = daysSince(dotDate);
+  const dEntered = daysSince(dateEnteredStr);
+  // Cow: 0 dots on calving day, +1 per day after
+  // Heifer: 1 dot on calving day, +1 per day after
+  const dots = Math.min(4, dCalved + (isHeifer ? 1 : 0));
   const dotStr = '●'.repeat(dots) + '○'.repeat(Math.max(0, 4 - dots));
   if (dots >= 4) return `<span class="badge green">Ready ${dotStr}</span>`;
-  if (d >= 7) return `<span class="badge red">⚠ ${d}d ${dotStr}</span>`;
-  if (d >= 5) return `<span class="badge amber">${d}d ${dotStr}</span>`;
-  return `<span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted)">${dotStr}</span>`;
+  if (dEntered >= 7) return `<span class="badge red">⚠ ${dEntered}d ${dotStr}</span>`;
+  if (dEntered >= 5) return `<span class="badge amber">${dEntered}d ${dotStr}</span>`;
+  return `<span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted)">${dEntered > 0 ? dEntered+'d ' : ''}${dotStr}</span>`;
 }
 
 // ── Tabs
@@ -1489,7 +1495,10 @@ function renderCalving() {
           <td><span class="tag">${m.tag}</span></td>
           <td>${fmtDate(m.dateLeftBarn)}</td>
           <td>${daysSince(m.dateLeftBarn)}d</td>
-          <td><button class="btn sec" style="font-size:.7rem;padding:4px 8px" data-moveid="mc-${m.id}" onclick="confirmMove(this,'→ Colostrum',()=>momToCol('${m.id}'))">→ Colostrum</button></td>
+          <td style="white-space:nowrap">
+            <input type="date" id="coldate-${m.id}" value="${todayStr()}" style="font-family:'JetBrains Mono',monospace;font-size:.58rem;padding:2px 3px;border:1px solid var(--border);border-radius:2px;background:var(--bg);color:var(--text);width:100px;margin-right:4px" onclick="event.stopPropagation()">
+            <button class="btn sec" style="font-size:.7rem;padding:4px 8px" data-moveid="mc-${m.id}" onclick="confirmMove(this,'→ Col',()=>momToColWithDate('${m.id}',document.getElementById('coldate-${m.id}').value))">→ Col</button>
+          </td>
           <td><button class="del" onclick="delMom('${m.id}')">✕</button></td>
         </tr>`).join("")}
       </tbody></table>`;
@@ -1511,7 +1520,7 @@ function renderCalving() {
         <tr>
           <td><span class="tag">${c.tag}</span></td>
           <td>${fmtDate(c.dateEntered)}</td>
-          <td>${colAlert(c.dateEntered, c.bay === S.heiferBay)}</td>
+          <td>${colAlert(c.dateEntered, c.bay === S.heiferBay, c.tag)}</td>
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="ch-${c.id}" onclick="confirmMove(this,'Herd',()=>colExit('${c.id}','milkingHerd'))">Herd</button></td>
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="co-${c.id}" onclick="confirmMove(this,'OAD',()=>colExit('${c.id}','oad'))">OAD</button></td>
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="cp-${c.id}" onclick="confirmMove(this,'Peno',()=>colExit('${c.id}','peno'))">Peno</button></td>
@@ -1667,13 +1676,15 @@ function addMom() {
 }
 function delMom(id) { S.newMoms = S.newMoms.filter(m=>m.id!==id); save(); render(); }
 function momToCol(id) {
+  momToColWithDate(id, todayStr());
+}
+function momToColWithDate(id, dateEntered) {
   const m = S.newMoms.find(x=>x.id===id); if (!m) return;
   removeDuplicates(m.tag,'colostrumMob');
   S.newMoms = S.newMoms.filter(x=>x.id!==id);
-  // Look up bay from calving history or calved list
   const calvRec = (S.calvingHistory||[]).find(h=>h.tag===m.tag) || (S.calvedList||[]).find(h=>h.tag===m.tag);
   const bay = calvRec ? calvRec.bay : null;
-  S.colostrumMob.push({ id: uid(), tag: m.tag, dateEntered: todayStr(), bay });
+  S.colostrumMob.push({ id: uid(), tag: m.tag, dateEntered: dateEntered || todayStr(), bay });
   save(); render();
 }
 function delCol(id) { S.colostrumMob = S.colostrumMob.filter(c=>c.id!==id); save(); render(); }
