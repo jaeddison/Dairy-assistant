@@ -1294,6 +1294,7 @@ function renderCalvingHistory() {
 
   // Group by date
   const groups = {};
+  const bayOrder = ['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Penicillin Paddock','Unknown'];
   allRecords.forEach(c => {
     if (!groups[c.dateCalved]) groups[c.dateCalved] = [];
     groups[c.dateCalved].push(c);
