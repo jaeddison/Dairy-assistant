@@ -1085,7 +1085,7 @@ function renderCalvingWatch() {
                 <td><span class="tag">${w.tag}</span></td>
                 <td><span class="badge ${WATCH_COLOURS[w.status]}">${w.status}</span></td>
                 <td><button class="btn sec" style="font-size:.68rem;padding:3px 8px" data-moveid="wc-${w.id}" onclick="confirmMove(this,'→ Calved',()=>moveToCalved('${w.id}'))">→ Calved</button></td>
-                <td><button class="del" onclick="removeFromWatch('${w.id}')">✕</button></td>
+                <td><button class="del" data-delid="dw-${w.id}" onclick="confirmDel(this,()=>removeFromWatch('${w.id}'))">✕</button></td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -1236,7 +1236,7 @@ function renderCalvingWatch() {
             </div>
             <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:6px">
               ${!expanded ? freshBtn : ''}
-              <button class="del" onclick="removeFromCalved('${c.id}')">✕</button>
+              <button class="del" data-delid="dc-${c.id}" onclick="confirmDel(this,()=>removeFromCalved('${c.id}'))">✕</button>
             </div>
           </div>
           ${expandedContent}
@@ -1326,7 +1326,14 @@ function renderCalvingHistory() {
     if (deadCalves) summaryParts.push(`${deadCalves} ☠`);
     const summary = summaryParts.join(' · ');
 
-    const rows = cows.map(c => {
+    // Group by bay within this day
+    const bayGroups = {};
+    cows.forEach(c => { const b=c.bay||'Unknown'; if(!bayGroups[b])bayGroups[b]=[]; bayGroups[b].push(c); });
+    const orderedBaysH = [...bayOrder.filter(b=>bayGroups[b]),...Object.keys(bayGroups).filter(k=>!bayOrder.includes(k))];
+
+    const rows = orderedBaysH.map(bay => {
+      const bayCows = bayGroups[bay];
+      const bayRows = bayCows.map(c => {
       const bayLabel = c.bay ? (c.bay === 'Penicillin Paddock' ? 'P' : c.bay.replace('Bay ','')) : '?';
       const typeLabel = c.calfType || '?';
       const sexLabel = c.sex || '?';
@@ -1343,6 +1350,11 @@ function renderCalvingHistory() {
         <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">Bay ${bayLabel}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">${calfInfo}</td>
       </tr>`;
+      }).join('');
+      return `<div style="margin-bottom:4px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);padding:2px 0;margin-bottom:2px">${bay} (${bayCows.length})</div>
+        <table><thead><tr><th>Tag</th><th>Bay</th><th>Calf</th></tr></thead><tbody>${bayRows}</tbody></table>
+      </div>`;
     }).join('');
 
     return `<details style="border:1px solid var(--border);border-radius:3px;margin-bottom:6px">
@@ -1351,10 +1363,7 @@ function renderCalvingHistory() {
         <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted)">${cows.length} cows · ${summary}</span>
       </summary>
       <div style="padding:0 12px 12px">
-        <table style="margin-top:8px">
-          <thead><tr><th>Tag</th><th>Bay</th><th>Calf</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+        ${rows}
       </div>
     </details>`;
   }).join('');
@@ -1499,7 +1508,7 @@ function renderCalving() {
             <input type="date" id="coldate-${m.id}" value="${todayStr()}" style="font-family:'JetBrains Mono',monospace;font-size:.58rem;padding:2px 3px;border:1px solid var(--border);border-radius:2px;background:var(--bg);color:var(--text);width:100px;margin-right:4px" onclick="event.stopPropagation()">
             <button class="btn sec" style="font-size:.7rem;padding:4px 8px" data-moveid="mc-${m.id}" onclick="confirmMove(this,'→ Col',()=>momToColWithDate('${m.id}',document.getElementById('coldate-${m.id}').value))">→ Col</button>
           </td>
-          <td><button class="del" onclick="delMom('${m.id}')">✕</button></td>
+          <td><button class="del" data-delid="dm-${m.id}" onclick="confirmDel(this,()=>delMom('${m.id}'))">✕</button></td>
         </tr>`).join("")}
       </tbody></table>`;
   }
@@ -1524,7 +1533,7 @@ function renderCalving() {
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="ch-${c.id}" onclick="confirmMove(this,'Herd',()=>colExit('${c.id}','milkingHerd'))">Herd</button></td>
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="co-${c.id}" onclick="confirmMove(this,'OAD',()=>colExit('${c.id}','oad'))">OAD</button></td>
           <td><button class="btn sec" style="font-size:.66rem;padding:3px 6px" data-moveid="cp-${c.id}" onclick="confirmMove(this,'Peno',()=>colExit('${c.id}','peno'))">Peno</button></td>
-          <td><button class="del" onclick="delCol('${c.id}')">✕</button></td>
+          <td><button class="del" data-delid="dco-${c.id}" onclick="confirmDel(this,()=>delCol('${c.id}'))">✕</button></td>
         </tr>`).join("")}
       </tbody></table>`;
   }
@@ -1867,6 +1876,29 @@ async function doImport() {
 // ── Calf tally (in-memory scratchpad, not persisted)
 const _tally = {H:0, B:0, HF:0, D:0};
 const _pendingMoves = {}; // id -> {timer, btn}
+const _pendingDeletes = {};
+
+function confirmDel(btnEl, action) {
+  const id = btnEl.getAttribute('data-delid');
+  if (_pendingDeletes[id]) {
+    clearTimeout(_pendingDeletes[id].timer);
+    delete _pendingDeletes[id];
+    btnEl.style.background = 'var(--red)';
+    btnEl.style.color = '#fff';
+    btnEl.textContent = '✓';
+    setTimeout(() => action(), 300);
+  } else {
+    _pendingDeletes[id] = {
+      timer: setTimeout(() => {
+        delete _pendingDeletes[id];
+        if (btnEl) { btnEl.style.background=''; btnEl.style.color=''; btnEl.textContent='✕'; }
+      }, 2000)
+    };
+    btnEl.style.background = '#fce8e8';
+    btnEl.style.color = 'var(--red)';
+    btnEl.textContent = '✕?';
+  }
+}
 const _tallySnapshots = [];
 const _expandedCalved = new Set();
 // ── Two-tap move confirmation
