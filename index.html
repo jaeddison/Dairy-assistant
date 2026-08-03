@@ -568,7 +568,7 @@ function freshState() {
     bays: {"Bay 1":0,"Bay 2":0,"Bay 3":0,"Bay 4":0,"Bay 5":0,"Bay 6":0,"Penicillin Paddock":0},
     treatments: [], newMoms: [], colostrumMob: [], milkingHerd: [],
     oad: [], peno: [], lameCows: [], lameArchive: [],
-    watchList: [], calvedList: [], calvingHistory: [], usedKeeperTags: [], cowDeaths: [], heiferBay: "Bay 6"
+    watchList: [], calvedList: [], calvingHistory: [], usedKeeperTags: [], cowDeaths: [], heiferBay: "Bay 6", tallySnapshots: []
   };
 }
 
@@ -614,6 +614,7 @@ window.startFirestoreSync = function() {
       ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
         .forEach(k => { d[k] = d[k] || []; });
       if (!d.heiferBay) d.heiferBay = 'Bay 6';
+      d.tallySnapshots = d.tallySnapshots || [];
       S = d;
     }
     setSyncStatus('live');
@@ -735,6 +736,7 @@ function render() {
   renderCalving();
   renderCowDeathList();
   renderHeiferBayPicker();
+  tallyRender();
 }
 
 function renderHeiferBayPicker() {
@@ -869,9 +871,10 @@ function addToWatch() {
 
 function moveToCalved(id) {
   const cow = S.watchList.find(w => w.id === id); if (!cow) return;
-  if (S.calvedList.find(c => c.tag === cow.tag)) {
-    // Already in calved list — flash the existing entry
-    _expandedCalved.add(S.calvedList.find(c => c.tag === cow.tag).id);
+  if (S.calvedList.find(c => c.tag === cow.tag) || (S.calvingHistory||[]).find(c => c.tag === cow.tag)) {
+    // Already calved — flash if in active list, block silently if in history
+    const existing = S.calvedList.find(c => c.tag === cow.tag);
+    if (existing) _expandedCalved.add(existing.id);
     renderCalvingWatch();
     return;
   }
@@ -895,12 +898,12 @@ function addDirectCalved() {
   const date = document.getElementById('directCalvedDate').value || todayStr();
   const inp = document.getElementById('directCalvedTag');
   if (!raw) return;
-  // Check for duplicate in calved list
-  if (S.calvedList.find(c => c.tag === raw)) {
+  // Check for duplicate in calved list AND calving history
+  if (S.calvedList.find(c => c.tag === raw) || (S.calvingHistory||[]).find(c => c.tag === raw)) {
+    const dup = S.calvedList.find(c => c.tag === raw);
     if (inp) { inp.style.borderColor='var(--red)'; inp.style.background='#fce8e8'; setTimeout(()=>{inp.style.borderColor='';inp.style.background='';},1500); }
     // Expand the duplicate so user can see it
-    const dup = S.calvedList.find(c => c.tag === raw);
-    _expandedCalved.add(dup.id);
+    if (dup) _expandedCalved.add(dup.id);
     renderCalvingWatch();
     setTimeout(() => { if(inp) inp.focus(); }, 80);
     return;
@@ -933,16 +936,27 @@ function setCalvedType(id, type, twin) {
 
 function setKeeperTag(id, tag, twin) {
   const c = S.calvedList.find(x => x.id === id); if (!c) return;
-  if (twin) {
-    if (c.twinKeeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.twinKeeperTag);
-    c.twinKeeperTag = tag;
-    if (!S.usedKeeperTags.includes(tag)) S.usedKeeperTags.push(tag);
-  } else {
-    if (c.keeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.keeperTag);
-    c.keeperTag = tag;
-    if (!S.usedKeeperTags.includes(tag)) S.usedKeeperTags.push(tag);
-  }
+  if (twin) { c.twinKeeperTag = tag; }
+  else { c.keeperTag = tag; }
   save(); renderCalvingWatch();
+}
+
+// Compute used keeper tags from confirmed records only (moved to fresh or in calving history)
+function getUsedKeeperTags() {
+  const used = new Set();
+  // From calving history (all confirmed)
+  (S.calvingHistory||[]).forEach(c => {
+    if (c.keeperTag) used.add(Number(c.keeperTag));
+    if (c.twinKeeperTag) used.add(Number(c.twinKeeperTag));
+  });
+  // From calved list only if already moved to fresh
+  (S.calvedList||[]).forEach(c => {
+    if (c.movedToFresh) {
+      if (c.keeperTag) used.add(Number(c.keeperTag));
+      if (c.twinKeeperTag) used.add(Number(c.twinKeeperTag));
+    }
+  });
+  return used;
 }
 
 function toggleTwins(id) {
@@ -1000,11 +1014,6 @@ function cancelClearCalved() {
 }
 
 function removeFromCalved(id) {
-  const c = S.calvedList.find(x => x.id === id);
-  if (c) {
-    if (c.keeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.keeperTag);
-    if (c.twinKeeperTag) S.usedKeeperTags = S.usedKeeperTags.filter(t => t !== c.twinKeeperTag);
-  }
   S.calvedList = S.calvedList.filter(x => x.id !== id);
   save(); renderCalvingWatch();
 }
@@ -1108,7 +1117,7 @@ function renderCalvingWatch() {
     if (!pendingCows.length) { calvedEl.innerHTML = `<p class="empty">No calved cows to process</p>`; }
     else {
       const availTags = [];
-      for (let t = 1; t <= 350; t++) { if (!S.usedKeeperTags.includes(t)) availTags.push(t); }
+      const usedTags = getUsedKeeperTags(); for (let t = 1; t <= 350; t++) { if (!usedTags.has(t)) availTags.push(t); }
 
       // Helper to build one calf's selector block
       function calfBlock(c, availTags, twin) {
@@ -1846,6 +1855,7 @@ async function doImport() {
     ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
       .forEach(k => { imported[k] = imported[k] || []; });
     if (!imported.heiferBay) imported.heiferBay = 'Bay 6';
+    imported.tallySnapshots = imported.tallySnapshots || [];
     // Pause the Firestore listener while we write
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
     S = imported;
@@ -1900,7 +1910,7 @@ function confirmDel(btnEl, action) {
     btnEl.textContent = '✕?';
   }
 }
-const _tallySnapshots = [];
+// tallySnapshots now lives in S (persisted)
 const _expandedCalved = new Set();
 // ── Two-tap move confirmation
 function confirmMove(btnEl, label, action) {
@@ -1961,13 +1971,16 @@ function tallyDec(k) { if (_tally[k] > 0) _tally[k]--; tallyRender(); }
 function tallyReset() { _tally.H=0; _tally.B=0; _tally.HF=0; _tally.D=0; tallyRender(); }
 function tallySave() {
   const snap = `H:${_tally.H} · B:${_tally.B} · HF:${_tally.HF} · ☠:${_tally.D} · Total:${_tally.H+_tally.B+_tally.HF+_tally.D}`;
-  _tallySnapshots.push({id: uid(), text: snap});
+  if (!S.tallySnapshots) S.tallySnapshots = [];
+  S.tallySnapshots.push({id: uid(), text: snap});
+  save();
   tallyReset();
   tallyRender();
 }
 function tallyDelSnap(id) {
-  const idx = _tallySnapshots.findIndex(s=>s.id===id);
-  if (idx !== -1) _tallySnapshots.splice(idx,1);
+  if (!S.tallySnapshots) return;
+  S.tallySnapshots = S.tallySnapshots.filter(s=>s.id!==id);
+  save();
   tallyRender();
 }
 function tallyRender() {
@@ -1976,7 +1989,8 @@ function tallyRender() {
   if (tot) tot.textContent = _tally.H+_tally.B+_tally.HF+_tally.D;
   const snapEl = document.getElementById('tallySnapshots');
   if (snapEl) {
-    snapEl.innerHTML = _tallySnapshots.length ? _tallySnapshots.map(s=>
+    const snaps = S.tallySnapshots || [];
+    snapEl.innerHTML = snaps.length ? snaps.map(s=>
       `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed var(--border);font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted)">
         <span>${s.text}</span>
         <button class="del" onclick="tallyDelSnap('${s.id}')">✕</button>
