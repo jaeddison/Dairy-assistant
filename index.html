@@ -335,7 +335,19 @@ input:focus,select:focus{border-color:var(--accent)}
           </div>
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">
+      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Bay</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap" id="tallyBayPicker">
+          <button class="foot-btn" onclick="setTallyBay('Bay 1')">1</button>
+          <button class="foot-btn" onclick="setTallyBay('Bay 2')">2</button>
+          <button class="foot-btn" onclick="setTallyBay('Bay 3')">3</button>
+          <button class="foot-btn" onclick="setTallyBay('Bay 4')">4</button>
+          <button class="foot-btn" onclick="setTallyBay('Bay 5')">5</button>
+          <button class="foot-btn" onclick="setTallyBay('Bay 6')">6</button>
+          <button class="foot-btn" onclick="setTallyBay('Penicillin Paddock')">P</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
         <span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted)">Total: <strong id="tallyTotal" style="color:var(--accent)">0</strong></span>
         <div style="display:flex;gap:6px">
           <button onclick="tallySave()" class="btn" style="padding:5px 12px;font-size:.72rem">Save &amp; reset</button>
@@ -1254,11 +1266,34 @@ function renderCalvingWatch() {
 
       calvedEl.innerHTML = orderedBays.map(bay => {
         const cows = calvedGroups[bay];
-        return `<div style="margin-bottom:12px">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:4px;display:flex;justify-content:space-between">
-            <span>${bay}</span><span>${cows.length}</span>
+        const bayKey = 'calvedBay-' + bay;
+        const collapsed = _collapsedCalvedBays.has(bayKey);
+        // Calf type summary
+        let b=0,k=0,hf=0,dead=0;
+        cows.forEach(c => {
+          if (c.calfType==='Bobby') b++; else if (c.calfType==='Keeper') k++; else if (c.calfType==='Hereford') hf++;
+          if (c.calfDead) dead++;
+          if (c.twins) {
+            if (c.twinType==='Bobby') b++; else if (c.twinType==='Keeper') k++; else if (c.twinType==='Hereford') hf++;
+            if (c.twinDead) dead++;
+          }
+        });
+        const parts = [];
+        if (b) parts.push(`B:${b}`);
+        if (k) parts.push(`K:${k}`);
+        if (hf) parts.push(`HF:${hf}`);
+        if (dead) parts.push(`☠:${dead}`);
+        const summary = parts.length ? ' · ' + parts.join(' · ') : '';
+        return `<div style="margin-bottom:8px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:5px 6px;border:1px solid var(--border);border-radius:3px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:var(--bg)" onclick="toggleCalvedBay('${bayKey}')">
+            <span style="display:flex;gap:6px;align-items:center">
+              <span>${collapsed ? '▸' : '▾'}</span>
+              <span>${bay}</span>
+              <span style="font-weight:400;font-size:.62rem">${summary}</span>
+            </span>
+            <span>${cows.length}</span>
           </div>
-          ${cows.map(renderCalvedCard).join('')}
+          ${collapsed ? '' : cows.map(renderCalvedCard).join('')}
         </div>`;
       }).join('') + (pendingCows.length ? `
         <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;border-top:2px solid var(--border);padding-top:10px;margin-top:6px">
@@ -1520,7 +1555,10 @@ function renderCalving() {
           </td>
           <td><button class="del" data-delid="dm-${m.id}" onclick="confirmDel(this,()=>delMom('${m.id}'))">✕</button></td>
         </tr>`).join("")}
-      </tbody></table>`;
+      </tbody></table>
+      <div style="margin-top:10px;text-align:right">
+        <button class="btn sec" style="font-size:.72rem;padding:5px 12px" data-moveid="all-to-col" onclick="confirmMove(this,'→ All to Col',allMomsToCol)">→ All to Colostrum</button>
+      </div>`;
   }
 
   // Colostrum
@@ -1693,6 +1731,11 @@ function addMom() {
   document.getElementById("momTag").value = "";
   save(); render();
 }
+function allMomsToCol() {
+  const date = todayStr();
+  [...S.newMoms].forEach(m => momToColWithDate(m.id, date));
+}
+
 function delMom(id) { S.newMoms = S.newMoms.filter(m=>m.id!==id); save(); render(); }
 function momToCol(id) {
   momToColWithDate(id, todayStr());
@@ -1886,6 +1929,7 @@ async function doImport() {
 
 // ── Calf tally (in-memory scratchpad, not persisted)
 const _tally = {H:0, B:0, HF:0, D:0};
+let _tallyBay = null;
 const _pendingMoves = {}; // id -> {timer, btn}
 const _pendingDeletes = {};
 
@@ -1912,6 +1956,9 @@ function confirmDel(btnEl, action) {
 }
 // tallySnapshots now lives in S (persisted)
 const _expandedCalved = new Set();
+const _collapsedCalvedBays = new Set();
+function toggleCalvedBay(key) { if (_collapsedCalvedBays.has(key)) _collapsedCalvedBays.delete(key); else _collapsedCalvedBays.add(key); renderCalvingWatch(); }
+function toggleCalvedExpand(id) { if (_expandedCalved.has(id)) _expandedCalved.delete(id); else _expandedCalved.add(id); renderCalvingWatch(); }
 // ── Two-tap move confirmation
 function confirmMove(btnEl, label, action) {
   const id = btnEl.getAttribute('data-moveid');
@@ -1967,14 +2014,20 @@ function updateCalvedDate(id, newDate) {
 
 function toggleCalvedExpand(id) { if (_expandedCalved.has(id)) _expandedCalved.delete(id); else _expandedCalved.add(id); renderCalvingWatch(); }
 function tallyInc(k) { _tally[k]++; tallyRender(); }
+function setTallyBay(bay) {
+  _tallyBay = _tallyBay === bay ? null : bay;
+  tallyRender();
+}
 function tallyDec(k) { if (_tally[k] > 0) _tally[k]--; tallyRender(); }
 function tallyReset() { _tally.H=0; _tally.B=0; _tally.HF=0; _tally.D=0; tallyRender(); }
 function tallySave() {
-  const snap = `H:${_tally.H} · B:${_tally.B} · HF:${_tally.HF} · ☠:${_tally.D} · Total:${_tally.H+_tally.B+_tally.HF+_tally.D}`;
+  const bayLabel = _tallyBay ? (_tallyBay === 'Penicillin Paddock' ? 'Pen' : _tallyBay) + ' — ' : '';
+  const snap = `${bayLabel}H:${_tally.H} · B:${_tally.B} · HF:${_tally.HF} · ☠:${_tally.D} · Total:${_tally.H+_tally.B+_tally.HF+_tally.D}`;
   if (!S.tallySnapshots) S.tallySnapshots = [];
   S.tallySnapshots.push({id: uid(), text: snap});
   save();
   tallyReset();
+  _tallyBay = null;
   tallyRender();
 }
 function tallyDelSnap(id) {
@@ -1996,6 +2049,14 @@ function tallyRender() {
         <button class="del" onclick="tallyDelSnap('${s.id}')">✕</button>
       </div>`
     ).join('') : '';
+  }
+  // Update bay picker selection
+  const picker = document.getElementById('tallyBayPicker');
+  if (picker) {
+    const bays = ['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Penicillin Paddock'];
+    picker.querySelectorAll('.foot-btn').forEach((btn, i) => {
+      btn.classList.toggle('selected', bays[i] === _tallyBay);
+    });
   }
 }
 
