@@ -549,6 +549,21 @@ input:focus,select:focus{border-color:var(--accent)}
 </div><!-- end .app -->
 </div><!-- end #appScreen -->
 
+<!-- CALVING HISTORY EDIT MODAL -->
+<div class="modal-overlay hidden" id="historyEditModal" onclick="closeHistoryEdit(event)" style="display:none">
+  <div class="modal" style="width:320px;max-height:90vh;overflow-y:auto">
+    <h3 id="historyEditTitle">Edit Calving Record</h3>
+    <div id="historyEditBody"></div>
+    <div class="modal-btns" style="margin-top:16px;flex-wrap:wrap;gap:8px">
+      <button class="btn sec" onclick="closeHistoryEditDirect()">Cancel</button>
+      <button class="btn" onclick="saveHistoryEdit()">Save</button>
+    </div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)">
+      <button class="btn" style="background:var(--red);width:100%;font-size:.78rem" data-delid="hist-edit" onclick="confirmDel(this,()=>deleteHistoryRecord(_historyEditId))">Delete record</button>
+    </div>
+  </div>
+</div>
+
 <!-- BAY MODAL -->
 <div class="modal-overlay hidden" id="bayModal" onclick="closeBayModal(event)" style="display:none">
   <div class="modal">
@@ -1394,6 +1409,7 @@ function renderCalvingHistory() {
         <td><span class="tag" style="font-size:.8rem">${c.tag}</span>${cowDeadMark}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">Bay ${bayLabel}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:.7rem">${calfInfo}</td>
+        <td><button class="btn sec" style="font-size:.62rem;padding:2px 7px" onclick="openHistoryEdit('${c.id}')">Edit</button></td>
       </tr>`;
       }).join('');
       return `<div style="margin-bottom:4px">
@@ -2121,6 +2137,116 @@ function cowSearch() {
   el.innerHTML = rows.length
     ? `<div style="border:1px solid var(--border);border-radius:3px;padding:12px;background:var(--bg)"><div style="font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600;margin-bottom:10px;color:var(--accent)">Tag ${tag}</div>${rows.join('')}</div>`
     : `<p style="color:var(--muted);font-style:italic;font-size:.82rem">No records found for tag ${tag}</p>`;
+}
+
+// ── Calving History Edit
+let _historyEditId = null;
+
+function openHistoryEdit(id) {
+  const rec = (S.calvingHistory||[]).find(r=>r.id===id);
+  if (!rec) return;
+  _historyEditId = id;
+  document.getElementById('historyEditTitle').textContent = `Edit — Cow ${rec.tag}`;
+  const BAYS = ['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Penicillin Paddock'];
+  const typeOpts = ['Bobby','Keeper','Hereford'].map(t=>`<option${rec.calfType===t?' selected':''}>${t}</option>`).join('');
+  const twinTypeOpts = ['Bobby','Keeper','Hereford'].map(t=>`<option${rec.twinType===t?' selected':''}>${t}</option>`).join('');
+  const bayOpts = BAYS.map(b=>`<option${rec.bay===b?' selected':''}>${b}</option>`).join('');
+  const availTags = [];
+  const usedTags = getUsedKeeperTags();
+  for (let t=1;t<=350;t++) { if (!usedTags.has(t) || t===rec.keeperTag || t===rec.twinKeeperTag) availTags.push(t); }
+  const keeperTagOpts = `<option value="">None</option>` + availTags.map(t=>`<option${rec.keeperTag===t?' selected':''}>${t}</option>`).join('');
+  const twinKeeperTagOpts = `<option value="">None</option>` + availTags.map(t=>`<option${rec.twinKeeperTag===t?' selected':''}>${t}</option>`).join('');
+
+  document.getElementById('historyEditBody').innerHTML = `
+    <div class="field" style="margin-top:12px"><label>Date Calved</label><input type="date" id="he-date" value="${rec.dateCalved||''}"></div>
+    <div class="field"><label>Bay</label><select id="he-bay">${bayOpts}</select></div>
+    <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Calf 1</div>
+    <div class="field"><label>Sex</label><select id="he-sex"><option value="">—</option><option${rec.sex==='H'?' selected':''}>H</option><option${rec.sex==='B'?' selected':''}>B</option></select></div>
+    <div class="field"><label>Type</label><select id="he-type">${typeOpts}</select></div>
+    <div class="field"><label>Keeper Tag</label><select id="he-ktag">${keeperTagOpts}</select></div>
+    <div class="field" style="flex-direction:row;align-items:center;gap:8px;margin-top:8px">
+      <input type="checkbox" id="he-dead"${rec.calfDead?' checked':''}>
+      <label style="margin:0;text-transform:none;font-size:.82rem">Calf dead</label>
+    </div>
+    <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:.68rem;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Twin</div>
+    <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+      <input type="checkbox" id="he-twins"${rec.twins?' checked':''} onchange="document.getElementById('he-twinfields').style.display=this.checked?'block':'none'">
+      <label style="margin:0;text-transform:none;font-size:.82rem">Has twin</label>
+    </div>
+    <div id="he-twinfields" style="display:${rec.twins?'block':'none'}">
+      <div class="field"><label>Twin Sex</label><select id="he-tsex"><option value="">—</option><option${rec.twinSex==='H'?' selected':''}>H</option><option${rec.twinSex==='B'?' selected':''}>B</option></select></div>
+      <div class="field"><label>Twin Type</label><select id="he-ttype">${twinTypeOpts}</select></div>
+      <div class="field"><label>Twin Keeper Tag</label><select id="he-tktag">${twinKeeperTagOpts}</select></div>
+      <div class="field" style="flex-direction:row;align-items:center;gap:8px;margin-top:8px">
+        <input type="checkbox" id="he-tdead"${rec.twinDead?' checked':''}>
+        <label style="margin:0;text-transform:none;font-size:.82rem">Twin dead</label>
+      </div>
+    </div>`;
+
+  const m = document.getElementById('historyEditModal');
+  m.classList.remove('hidden'); m.style.display='flex';
+}
+
+function closeHistoryEdit(e) { if (e && e.target !== document.getElementById('historyEditModal')) return; closeHistoryEditDirect(); }
+function closeHistoryEditDirect() {
+  const m = document.getElementById('historyEditModal');
+  m.classList.add('hidden'); m.style.display='none';
+  _historyEditId = null;
+}
+
+function saveHistoryEdit() {
+  if (!_historyEditId) return;
+  const idx = (S.calvingHistory||[]).findIndex(r=>r.id===_historyEditId);
+  if (idx === -1) return;
+  const rec = S.calvingHistory[idx];
+  const g = id => document.getElementById(id);
+  const newDate = g('he-date').value || rec.dateCalved;
+  const newBay = g('he-bay').value;
+  const newSex = g('he-sex').value || null;
+  const newType = g('he-type').value || null;
+  const newKtag = g('he-ktag').value ? parseInt(g('he-ktag').value) : null;
+  const newDead = g('he-dead').checked;
+  const hasTwin = g('he-twins').checked;
+  const newTSex = hasTwin ? (g('he-tsex').value||null) : null;
+  const newTType = hasTwin ? (g('he-ttype').value||null) : null;
+  const newTKtag = hasTwin ? (g('he-tktag').value ? parseInt(g('he-tktag').value) : null) : null;
+  const newTDead = hasTwin ? g('he-tdead').checked : false;
+
+  // Update calved list if still there
+  const calvedIdx = (S.calvedList||[]).findIndex(c=>c.id===_historyEditId);
+  const target = calvedIdx !== -1 ? S.calvedList[calvedIdx] : S.calvingHistory[idx];
+
+  const updates = { dateCalved:newDate, bay:newBay, sex:newSex, calfType:newType, keeperTag:newKtag, calfDead:newDead,
+    twins:hasTwin, twinSex:newTSex, twinType:newTType, twinKeeperTag:newTKtag, twinDead:newTDead };
+  Object.assign(S.calvingHistory[idx], updates);
+  if (calvedIdx !== -1) Object.assign(S.calvedList[calvedIdx], updates);
+
+  // Update colostrum entry date if bay changed (heifer status may change)
+  const colEntry = (S.colostrumMob||[]).find(c=>c.tag===rec.tag);
+  if (colEntry) colEntry.bay = newBay;
+
+  save(); render();
+  closeHistoryEditDirect();
+}
+
+function deleteHistoryRecord(id) {
+  if (!id) return;
+  const rec = (S.calvingHistory||[]).find(r=>r.id===id);
+  if (!rec) return;
+
+  // Remove from calvingHistory
+  S.calvingHistory = (S.calvingHistory||[]).filter(r=>r.id!==id);
+  // Remove from calvedList if still there
+  S.calvedList = (S.calvedList||[]).filter(c=>c.id!==id);
+  // Remove from newMoms if she was moved there
+  S.newMoms = (S.newMoms||[]).filter(m=>m.tag!==rec.tag);
+  // Remove from colostrumMob
+  S.colostrumMob = (S.colostrumMob||[]).filter(c=>c.tag!==rec.tag);
+  // Restore bay count
+  if (rec.bay && S.bays[rec.bay] !== undefined) S.bays[rec.bay] = (S.bays[rec.bay]||0) + 1;
+
+  save(); render();
+  closeHistoryEditDirect();
 }
 
 // ── Keyboard
