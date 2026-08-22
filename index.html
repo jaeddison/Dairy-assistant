@@ -429,9 +429,31 @@ input:focus,select:focus{border-color:var(--accent)}
         <input type="number" id="colGraze" min="0" onchange="updateGraze('col')" oninput="updateGraze('col')">
         <div class="graze-result" id="colGrazeResult">—</div>
       </div>
+      </div><!-- end colBody -->
     </div>
-    <div class="card">
-      <h2>Milking Herd <span id="milkCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
+    <div class="card" id="milkCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('milkCard','milkBody')">
+        <h2 style="border:none;padding:0;margin:0">Milking Herd <span id="milkCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
+        <span id="milkCard-chev" style="color:var(--muted);font-size:.8rem">▾</span>
+      </div>
+      <div id="milkBody">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:12px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Mob Split</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div>
+            <label style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Mob 1</label>
+            <input type="number" id="mob1Input" min="0" style="width:100%" oninput="updateMobSplit()">
+          </div>
+          <div>
+            <label style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Mob 2</label>
+            <div id="mob2Calc" style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--accent);padding:8px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px">—</div>
+          </div>
+          <div>
+            <label style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Mob 3</label>
+            <input type="number" id="mob3Input" min="0" style="width:100%" oninput="updateMobSplit()">
+          </div>
+        </div>
+      </div>
       <div id="milkTable"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
@@ -443,7 +465,6 @@ input:focus,select:focus{border-color:var(--accent)}
         <button class="btn" onclick="addToGroup('milkingHerd','milkTag')">Add</button>
       </div>
       </div><!-- end milkBody -->
-    </div>
     <div class="card" id="oadCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('oadCard','oadBody')">
         <h2 style="border:none;padding:0;margin:0">Once-a-Day (OAD) <span id="oadCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
@@ -785,11 +806,11 @@ function toggleSection(cardId, bodyId) {
 function updateMobSplit() {
   const total = S.milkingHerd.length;
   const mob1 = parseInt(document.getElementById('mob1Input')?.value||0)||0;
-  const mob2 = parseInt(document.getElementById('mob2Input')?.value||0)||0;
-  const mob3 = Math.max(0, total - mob1 - mob2);
+  const mob3 = parseInt(document.getElementById('mob3Input')?.value||0)||0;
+  const mob2 = Math.max(0, total - mob1 - mob3);
   S.mob1 = mob1; S.mob2 = mob2; S.mob3 = mob3;
-  const calc = document.getElementById('mob3Calc');
-  if (calc) calc.textContent = mob3;
+  const calc = document.getElementById('mob2Calc');
+  if (calc) calc.textContent = mob2;
   save();
 }
 
@@ -1526,9 +1547,9 @@ function renderMineralCalc() {
 
 function initMobSplit() {
   const m1 = document.getElementById('mob1Input');
-  const m2 = document.getElementById('mob2Input');
+  const m3 = document.getElementById('mob3Input');
   if (m1) m1.value = S.mob1 || '';
-  if (m2) m2.value = S.mob2 || '';
+  if (m3) m3.value = S.mob3 || '';
   updateMobSplit();
 }
 
