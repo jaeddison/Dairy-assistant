@@ -195,6 +195,7 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
   </div>
 
+  <div id="renderErrorBanner"></div>
   <div class="tabs">
     <button class="tab active" onclick="showTab(0)">Bays</button>
     <button class="tab" onclick="showTab(1)">Dry Cow</button>
@@ -815,14 +816,11 @@ function updateMobSplit() {
 }
 
 function render() {
-  renderBays();
-  renderTreatments();
-  renderLame();
-  renderCalvingWatch();
-  renderCalving();
-  renderCowDeathList();
-  renderHeiferBayPicker();
-  tallyRender();
+  const errors = [];
+  const fns = [renderBays, renderTreatments, renderLame, renderCalvingWatch, renderCalving, renderCowDeathList, renderHeiferBayPicker, tallyRender];
+  fns.forEach(fn => { try { fn(); } catch(e) { errors.push(fn.name + ': ' + e.message); console.error(fn.name, e); } });
+  const banner = document.getElementById('renderErrorBanner');
+  if (banner) banner.innerHTML = errors.length ? `<div style="background:var(--red);color:#fff;padding:8px 12px;font-size:.72rem;font-family:'JetBrains Mono',monospace">⚠ Render error — ${errors.join(' | ')}</div>` : '';
 }
 
 function renderHeiferBayPicker() {
