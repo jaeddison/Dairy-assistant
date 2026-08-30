@@ -1400,6 +1400,11 @@ function renderCalvingWatch() {
   renderCalvingHistory();
 }
 
+function toggleHistDay(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
 function renderCalvingHistory() {
   const el = document.getElementById('calvingHistory');
   if (!el) return;
@@ -1478,15 +1483,16 @@ function renderCalvingHistory() {
       </div>`;
     }).join('');
 
-    return `<details style="border:1px solid var(--border);border-radius:3px;margin-bottom:6px">
-      <summary style="padding:10px 12px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
+    const histId = 'hist-' + date.replace(/-/g,'');
+    return `<div style="border:1px solid var(--border);border-radius:3px;margin-bottom:6px">
+      <div onclick="toggleHistDay('${histId}')" style="padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
         <span style="font-family:'JetBrains Mono',monospace;font-size:.75rem;font-weight:600">${fmtDayHeader(date)}</span>
         <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted)">${cows.length} cows · ${summary}</span>
-      </summary>
-      <div style="padding:0 12px 12px">
+      </div>
+      <div id="${histId}" style="display:none;padding:0 12px 12px">
         ${rows}
       </div>
-    </details>`;
+    </div>`;
   }).join('');
   } catch(e) {
     el.innerHTML = `<p style="color:var(--red);font-size:.78rem">⚠ Error rendering calving history: ${e.message}</p>`;
