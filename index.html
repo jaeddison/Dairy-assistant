@@ -33,7 +33,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence).catch(e => console.warn('Persistence error:', e));
-const db = getFirestore(app);
+const db = getFirestore(app, 'dairy-assistant');
 const DATA_DOC = doc(db, 'dairy', 'D1');
 const GRAZE_DOC = doc(db, 'dairy', 'D1-graze');
 
@@ -556,7 +556,10 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card">
       <h2>Export</h2>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Copy your current data and paste to Claude with any instructions. Claude sends back a DAIRY_IMPORT code to paste below.</p>
-      <button class="btn" onclick="doExport()">Copy Export to Clipboard</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="doExport()">Copy Export to Clipboard</button>
+        <button class="btn sec" onclick="doExportFile()">Download as file</button>
+      </div>
       <div id="exportBox" class="export-box hidden"></div>
     </div>
     <div class="card">
@@ -621,6 +624,7 @@ const ALL_GROUPS = ['newMoms','colostrumMob','milkingHerd','oad','peno','watchLi
 let S = freshState();
 let G = {col:100, milk:128, oad:100, peno:100};
 let selectedFeet = [];
+let _snapshotReceived = false;
 let currentTab = 0;
 let _modalBay = null;
 let _saveTimer = null;
@@ -673,6 +677,29 @@ window.startFirestoreSync = function() {
   // Listen to main data doc
   _unsubscribe = window._onSnapshot(window._DATA_DOC, snap => {
     _receivingSnapshot = true;
+    if (!_snapshotReceived) {
+      // First snapshot — check if localStorage has newer data
+      try {
+        const backup = localStorage.getItem('dairy_backup');
+        if (backup) {
+          const b = JSON.parse(backup);
+          const backupHistory = (b.data.calvingHistory||[]).length;
+          const firebaseHistory = snap.exists() ? ((snap.data().calvingHistory||[]).length) : 0;
+          if (backupHistory > firebaseHistory + 2) {
+            const msg = `Local backup has ${backupHistory} calving records, Firebase has ${firebaseHistory}. Use local backup?`;
+            if (confirm(msg)) {
+              Object.assign(S, b.data);
+              _snapshotReceived = true;
+              _receivingSnapshot = false;
+              save();
+              render();
+              return;
+            }
+          }
+        }
+      } catch(e) {}
+    }
+    _snapshotReceived = true;
     if (snap.exists()) {
       const d = snap.data();
       ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
@@ -713,15 +740,22 @@ function setSyncStatus(state) {
 
 function save() {
   if (_receivingSnapshot) return;  // never write back during an incoming snapshot
+  if (!_snapshotReceived) return;  // never save before first snapshot received
   setSyncStatus('saving');
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(async () => {
     if (_receivingSnapshot) return;
+    if (!_snapshotReceived) return;
     try {
       await window._setDoc(window._DATA_DOC, S);
       setSyncStatus('saved');
+      // Mirror to localStorage as backup
+      try { localStorage.setItem('dairy_backup', JSON.stringify({ts: Date.now(), data: S})); } catch(e) {}
     } catch(e) {
-      document.getElementById('saveStatus').textContent = '⚠ Save failed';
+      setSyncStatus('error');
+      document.getElementById('saveStatus').textContent = '⚠ Save failed — data backed up locally';
+      // Store in localStorage so data isn't lost
+      try { localStorage.setItem('dairy_backup', JSON.stringify({ts: Date.now(), data: S})); } catch(e2) {}
     }
   }, 600);
 }
@@ -1975,6 +2009,20 @@ function doExport() {
   navigator.clipboard?.writeText(summary).catch(()=>{});
 }
 
+function doExportFile() {
+  // Export as downloadable file — avoids clipboard emoji/encoding issues
+  const jsonStr = JSON.stringify(S);
+  const content = "DAIRY_IMPORT:" + jsonStr;
+  const blob = new Blob([content], {type: 'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toLocaleDateString('en-CA', {timeZone:'Pacific/Auckland'});
+  a.href = url;
+  a.download = `dairy-export-${date}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Import
 async function doImport() {
   const raw = document.getElementById("importBox").value.trim();
@@ -2328,6 +2376,18 @@ function deleteHistoryRecord(id) {
   save(); render();
   closeHistoryEditDirect();
 }
+
+// ── Save on visibility change (app backgrounded)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && _snapshotReceived && !_receivingSnapshot) {
+    // Immediate save without debounce when leaving app
+    clearTimeout(_saveTimer);
+    window._setDoc(window._DATA_DOC, S).catch(() => {
+      // If cloud save fails, store in localStorage as backup
+      try { localStorage.setItem('dairy_backup', JSON.stringify({ts: Date.now(), data: S})); } catch(e) {}
+    });
+  }
+});
 
 // ── Keyboard
 document.addEventListener("keydown", e => {
