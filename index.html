@@ -2254,7 +2254,6 @@ function updateCalvedDate(id, newDate) {
   save(); renderCalvingWatch();
 }
 
-function toggleCalvedExpand(id) { if (_expandedCalved.has(id)) _expandedCalved.delete(id); else _expandedCalved.add(id); renderCalvingWatch(); }
 function tallyInc(k) { _tally[k]++; tallyRender(); }
 function setTallyBay(bay) {
   _tallyBay = _tallyBay === bay ? null : bay;
