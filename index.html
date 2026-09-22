@@ -461,11 +461,11 @@ input:focus,select:focus{border-color:var(--accent)}
         <input type="number" id="milkGraze" min="0" onchange="updateGraze('milk')" oninput="updateGraze('milk')">
         <div class="graze-result" id="milkGrazeResult">—</div>
       </div>
+      </div><!-- end milkBody -->
       <div class="form-row">
         <div class="field"><label>Add tags (batch ok)</label><input id="milkTag" placeholder="1234 1456 789" style="width:200px"></div>
         <button class="btn" onclick="addToGroup('milkingHerd','milkTag')">Add</button>
       </div>
-      </div><!-- end milkBody -->
     <div class="card" id="oadCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('oadCard','oadBody')">
         <h2 style="border:none;padding:0;margin:0">Once-a-Day (OAD) <span id="oadCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
@@ -478,11 +478,11 @@ input:focus,select:focus{border-color:var(--accent)}
         <input type="number" id="oadGraze" min="0" onchange="updateGraze('oad')" oninput="updateGraze('oad')">
         <div class="graze-result" id="oadGrazeResult">—</div>
       </div>
+      </div><!-- end oadBody -->
       <div class="form-row">
         <div class="field"><label>Add tags (batch ok)</label><input id="oadTag" placeholder="1234 1456 789" style="width:200px"></div>
         <button class="btn" onclick="addToGroup('oad','oadTag')">Add</button>
       </div>
-      </div><!-- end oadBody -->
     </div>
     <div class="card" id="penoCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('penoCard','penoBody')">
@@ -496,11 +496,11 @@ input:focus,select:focus{border-color:var(--accent)}
         <input type="number" id="penoGraze" min="0" onchange="updateGraze('peno')" oninput="updateGraze('peno')">
         <div class="graze-result" id="penoGrazeResult">—</div>
       </div>
+      </div><!-- end penoBody -->
       <div class="form-row">
         <div class="field"><label>Add tags (batch ok)</label><input id="penoTag" placeholder="1234 1456 789" style="width:200px"></div>
         <button class="btn" onclick="addToGroup('peno','penoTag')">Add</button>
       </div>
-      </div><!-- end penoBody -->
     </div>
 
     <!-- Mineral Calculator -->
@@ -908,21 +908,35 @@ function renderTreatments() {
     </tbody></table>`;
 }
 
+function setLameFoot(id, foot) {
+  const cow = S.lameCows.find(c => c.id === id);
+  if (!cow) return;
+  if (!cow.feet) cow.feet = [];
+  if (!cow.feet.includes(foot)) cow.feet.push(foot);
+  save(); render();
+}
+
 function renderLame() {
   const el = document.getElementById("lameTable");
   if (!el) return;
   if (!S.lameCows.length) { el.innerHTML = `<p class="empty">No lame cows recorded</p>`; }
   else el.innerHTML = `<table>
     <thead><tr><th>Tag</th><th>Location</th><th>Feet</th><th>Notes</th><th></th><th></th></tr></thead>
-    <tbody>${S.lameCows.map(c=>`
-      <tr>
+    <tbody>${S.lameCows.map(c=>{
+      const feetDisplay = (c.feet && c.feet.length)
+        ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.72rem">${c.feet.map(f=>FOOT_LABELS[f]).join(", ")}</span>`
+        : `<span style="display:inline-flex;gap:3px">
+            ${['LF','RF','LR','RR'].map(f=>`<button class="btn sec" style="font-size:.6rem;padding:2px 6px" onclick="setLameFoot('${c.id}','${f}')">${f}</button>`).join('')}
+           </span>`;
+      return `<tr>
         <td><span class="tag">${c.tag}</span></td>
         <td>${c.location}</td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:.72rem">${c.feet.map(f=>FOOT_LABELS[f]).join(", ")}</td>
+        <td>${feetDisplay}</td>
         <td style="color:var(--muted);font-size:.75rem">${c.notes||"—"}</td>
         <td><button class="treat-btn" id="tb-${c.id}" onclick="treatTap('${c.id}')">Treated?</button></td>
         <td><button class="del" onclick="delLame('${c.id}')">✕</button></td>
-      </tr>`).join("")}
+      </tr>`;
+    }).join("")}
     </tbody></table>`;
 
   const archCard = document.getElementById("lameArchiveCard");
