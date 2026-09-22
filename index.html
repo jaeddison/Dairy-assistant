@@ -741,6 +741,8 @@ function setSyncStatus(state) {
 function save() {
   if (_receivingSnapshot) return;  // never write back during an incoming snapshot
   if (!_snapshotReceived) return;  // never save before first snapshot received
+  // Strip transient UI flags before saving
+  (S.oad||[]).forEach(c => { delete c._lameOpen; });
   setSyncStatus('saving');
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(async () => {
@@ -1731,9 +1733,28 @@ function renderGroup(key, tableId, countId) {
   if (!arr.length) { el.innerHTML = ""; return; }
 
   const today = todayStr();
+  const isOAD = (key === 'oad');
   const addedToday = arr.filter(c => c.dateAdded === today);
   const rest = arr.filter(c => c.dateAdded !== today);
   const sortFn = (a,b) => a.tag.localeCompare(b.tag, undefined, {numeric:true});
+
+  function oadRowExtra(c) {
+    if (!isOAD) return '';
+    const days = c.dateAdded ? daysSince(c.dateAdded) : 0;
+    const daysLabel = days === 1 ? '1 day' : `${days} days`;
+    const skinnyActive = c.skinny ? 'style="background:var(--amber,#f59e0b);color:#000;border-color:var(--amber,#f59e0b)"' : '';
+    const lameExpanded = c._lameOpen ? `
+      <span style="display:inline-flex;gap:3px;margin-left:4px">
+        ${['LF','RF','LR','RR'].map(f=>`<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame('${c.id}','${f}')">${f}</button>`).join('')}
+        <button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLame('${c.id}',null)">?</button>
+      </span>` : '';
+    const lameBtn = `<button class="btn sec" id="oadlb-${c.id}" style="font-size:.6rem;padding:2px 6px${c._lameOpen?';background:var(--red,#ef4444);color:#fff;border-color:var(--red,#ef4444)':''}" onclick="oadLameToggle('${c.id}')">${c._lameOpen?'✕':'Lame'}</button>`;
+    return `<td style="text-align:right;white-space:nowrap;padding-left:6px">
+      <span style="font-size:.65rem;color:var(--muted);margin-right:4px">${daysLabel}</span>
+      ${lameBtn}${lameExpanded}
+      <button class="btn sec" style="font-size:.6rem;padding:2px 6px;margin-left:3px" ${skinnyActive} onclick="oadSkinny('${c.id}')">Skinny</button>
+    </td>`;
+  }
 
   let html = '';
   if (addedToday.length) {
@@ -1741,17 +1762,43 @@ function renderGroup(key, tableId, countId) {
       <span>Added today</span><span>${addedToday.length}</span></div>
     <table style="margin-bottom:8px">
       <tbody>${[...addedToday].sort(sortFn).map(c=>`
-        <tr><td><span class="tag">${c.tag}</span></td></tr>`).join("")}
+        <tr><td><span class="tag">${c.tag}</span>${c.skinny?'<span style="font-size:.6rem;color:var(--amber,#f59e0b);margin-left:4px">Skinny</span>':''}</td>${oadRowExtra(c)}</tr>`).join("")}
       </tbody></table>`;
   }
   if (rest.length) {
     if (addedToday.length) html += `<div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;display:flex;justify-content:space-between"><span>Previous</span><span>${rest.length}</span></div>`;
     html += `<table>
       <tbody>${[...rest].sort(sortFn).map(c=>`
-        <tr><td><span class="tag">${c.tag}</span></td></tr>`).join("")}
+        <tr><td><span class="tag">${c.tag}</span>${c.skinny?'<span style="font-size:.6rem;color:var(--amber,#f59e0b);margin-left:4px">Skinny</span>':''}</td>${oadRowExtra(c)}</tr>`).join("")}
       </tbody></table>`;
   }
   el.innerHTML = html;
+}
+
+// ── OAD lame / skinny helpers
+function oadLameToggle(id) {
+  const arr = S.oad || [];
+  const cow = arr.find(c => c.id === id);
+  if (!cow) return;
+  cow._lameOpen = !cow._lameOpen;
+  render();
+}
+function oadLame(id, foot) {
+  const arr = S.oad || [];
+  const cow = arr.find(c => c.id === id);
+  if (!cow) return;
+  // Remove _lameOpen flag (transient UI state, not saved)
+  delete cow._lameOpen;
+  // Add to lame register
+  S.lameCows.push({ id: uid(), tag: cow.tag, location: 'OAD', feet: foot ? [foot] : [], notes: '', dateAdded: todayStr() });
+  save(); render();
+}
+function oadSkinny(id) {
+  const arr = S.oad || [];
+  const cow = arr.find(c => c.id === id);
+  if (!cow) return;
+  cow.skinny = !cow.skinny;
+  save(); render();
 }
 
 // ── Bay modal
@@ -1800,7 +1847,7 @@ function addLame() {
   const tag = document.getElementById("lameTag").value.trim();
   const loc = document.getElementById("lameLoc").value;
   const notes = document.getElementById("lameNotes").value.trim();
-  if (!tag || !selectedFeet.length) return;
+  if (!tag) return;
   S.lameCows.push({ id: uid(), tag, location: loc, feet: [...selectedFeet], notes, dateAdded: todayStr() });
   document.getElementById("lameTag").value = "";
   document.getElementById("lameNotes").value = "";
