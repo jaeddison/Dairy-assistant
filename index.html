@@ -1742,18 +1742,54 @@ function renderGroup(key, tableId, countId) {
     if (!isOAD) return '';
     const days = c.dateAdded ? daysSince(c.dateAdded) : 0;
     const daysLabel = days === 1 ? '1 day' : `${days} days`;
+
+    // Lame indicator — persistent once set, button to add another entry
+    let lameSection = '';
+    if (c.lame && c.lame.length) {
+      // Show each lame entry (foot + days ago)
+      const lameChips = c.lame.map(l => {
+        const lameDays = l.dateAdded ? daysSince(l.dateAdded) : 0;
+        const footLabel = l.foot || '?';
+        const ageLabel = lameDays === 0 ? 'today' : lameDays === 1 ? '1d ago' : `${lameDays}d ago`;
+        return `<span style="font-size:.6rem;background:var(--red,#ef4444);color:#fff;border-radius:3px;padding:1px 4px;margin-left:2px">${footLabel} ${ageLabel}</span>`;
+      }).join('');
+      const lameExpanded = c._lameOpen ? `
+        <span style="display:inline-flex;gap:3px;margin-left:4px">
+          ${['LF','RF','LR','RR'].map(f=>`<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame('${c.id}','${f}')">${f}</button>`).join('')}
+          <button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLame('${c.id}',null)">?</button>
+          <button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLameToggle('${c.id}')">✕</button>
+        </span>` : '';
+      lameSection = `${lameChips}<button class="btn sec" style="font-size:.6rem;padding:2px 4px;margin-left:3px" onclick="oadLameToggle('${c.id}')">+🦵</button>${lameExpanded}`;
+    } else {
+      const lameExpanded = c._lameOpen ? `
+        <span style="display:inline-flex;gap:3px;margin-left:4px">
+          ${['LF','RF','LR','RR'].map(f=>`<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame('${c.id}','${f}')">${f}</button>`).join('')}
+          <button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLame('${c.id}',null)">?</button>
+        </span>` : '';
+      lameSection = `<button class="btn sec" style="font-size:.6rem;padding:2px 6px${c._lameOpen?';background:var(--red,#ef4444);color:#fff;border-color:var(--red,#ef4444)':''}" onclick="oadLameToggle('${c.id}')">${c._lameOpen?'✕ cancel':'Lame'}</button>${lameExpanded}`;
+    }
+
     const skinnyActive = c.skinny ? 'style="background:var(--amber,#f59e0b);color:#000;border-color:var(--amber,#f59e0b)"' : '';
-    const lameExpanded = c._lameOpen ? `
-      <span style="display:inline-flex;gap:3px;margin-left:4px">
-        ${['LF','RF','LR','RR'].map(f=>`<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame('${c.id}','${f}')">${f}</button>`).join('')}
-        <button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLame('${c.id}',null)">?</button>
-      </span>` : '';
-    const lameBtn = `<button class="btn sec" id="oadlb-${c.id}" style="font-size:.6rem;padding:2px 6px${c._lameOpen?';background:var(--red,#ef4444);color:#fff;border-color:var(--red,#ef4444)':''}" onclick="oadLameToggle('${c.id}')">${c._lameOpen?'✕':'Lame'}</button>`;
     return `<td style="text-align:right;white-space:nowrap;padding-left:6px">
-      <span style="font-size:.65rem;color:var(--muted);margin-right:4px">${daysLabel}</span>
-      ${lameBtn}${lameExpanded}
+      <span style="font-size:.65rem;color:var(--muted);margin-right:6px">${daysLabel}</span>
+      ${lameSection}
       <button class="btn sec" style="font-size:.6rem;padding:2px 6px;margin-left:3px" ${skinnyActive} onclick="oadSkinny('${c.id}')">Skinny</button>
     </td>`;
+  }
+
+  // For OAD: sort lame+skinny to top, then lame-only, then skinny-only, then by tag
+  function oadSortFn(a, b) {
+    if (!isOAD) return sortFn(a, b);
+    const aLame = !!(a.lame && a.lame.length), bLame = !!(b.lame && b.lame.length);
+    const aSkinny = !!a.skinny, bSkinny = !!b.skinny;
+    const aScore = (aLame ? 2 : 0) + (aSkinny ? 1 : 0);
+    const bScore = (bLame ? 2 : 0) + (bSkinny ? 1 : 0);
+    if (aScore !== bScore) return bScore - aScore;
+    return sortFn(a, b);
+  }
+
+  function cowRow(c) {
+    return `<tr><td><span class="tag">${c.tag}</span></td>${oadRowExtra(c)}</tr>`;
   }
 
   let html = '';
@@ -1761,15 +1797,13 @@ function renderGroup(key, tableId, countId) {
     html += `<div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--green);padding:6px 0 4px;display:flex;justify-content:space-between">
       <span>Added today</span><span>${addedToday.length}</span></div>
     <table style="margin-bottom:8px">
-      <tbody>${[...addedToday].sort(sortFn).map(c=>`
-        <tr><td><span class="tag">${c.tag}</span>${c.skinny?'<span style="font-size:.6rem;color:var(--amber,#f59e0b);margin-left:4px">Skinny</span>':''}</td>${oadRowExtra(c)}</tr>`).join("")}
+      <tbody>${[...addedToday].sort(oadSortFn).map(cowRow).join("")}
       </tbody></table>`;
   }
   if (rest.length) {
     if (addedToday.length) html += `<div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;display:flex;justify-content:space-between"><span>Previous</span><span>${rest.length}</span></div>`;
     html += `<table>
-      <tbody>${[...rest].sort(sortFn).map(c=>`
-        <tr><td><span class="tag">${c.tag}</span>${c.skinny?'<span style="font-size:.6rem;color:var(--amber,#f59e0b);margin-left:4px">Skinny</span>':''}</td>${oadRowExtra(c)}</tr>`).join("")}
+      <tbody>${[...rest].sort(oadSortFn).map(cowRow).join("")}
       </tbody></table>`;
   }
   el.innerHTML = html;
@@ -1789,7 +1823,10 @@ function oadLame(id, foot) {
   if (!cow) return;
   // Remove _lameOpen flag (transient UI state, not saved)
   delete cow._lameOpen;
-  // Add to lame register
+  // Persist lame record on the OAD cow itself
+  if (!cow.lame) cow.lame = [];
+  cow.lame.push({ foot: foot || null, dateAdded: todayStr() });
+  // Also add to main lame register
   S.lameCows.push({ id: uid(), tag: cow.tag, location: 'OAD', feet: foot ? [foot] : [], notes: '', dateAdded: todayStr() });
   save(); render();
 }
