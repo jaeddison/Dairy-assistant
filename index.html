@@ -1757,7 +1757,10 @@ function _oadRowExtra(c) {
       var ld = l.dateAdded ? daysSince(l.dateAdded) : 0;
       var fl = l.foot || '?';
       var al = ld === 0 ? 'today' : (ld === 1 ? '1d ago' : (ld + 'd ago'));
-      chips += '<span style="font-size:.6rem;background:var(--red,#ef4444);color:#fff;border-radius:3px;padding:1px 4px;margin-left:2px">' + fl + ' ' + al + '</span>';
+      chips += '<span style="font-size:.6rem;background:var(--red,#ef4444);color:#fff;border-radius:3px;padding:1px 4px;margin-left:2px;display:inline-flex;align-items:center;gap:2px">'
+        + fl + ' ' + al
+        + '<button onclick="oadLameDel(\'' + c.id + '\',' + li + ')" style="background:none;border:none;color:#fff;cursor:pointer;font-size:.6rem;padding:0 0 0 2px;line-height:1;opacity:.8">&#x2715;</button>'
+        + '</span>';
     }
     var expandBtns = c._lameOpen ? ('<span style="display:inline-flex;gap:3px;margin-left:4px">' + footBtns.replace(/^<span[^>]*>/, '').replace(/<\/span>$/, '') + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLameToggle(\'' + c.id + '\')">&#x2715;</button></span>') : '';
     lameSection = chips
@@ -1847,6 +1850,14 @@ function oadSkinny(id) {
   const cow = arr.find(c => c.id === id);
   if (!cow) return;
   cow.skinny = !cow.skinny;
+  save(); render();
+}
+
+function oadLameDel(id, idx) {
+  const arr = S.oad || [];
+  const cow = arr.find(c => c.id === id);
+  if (!cow || !cow.lame) return;
+  cow.lame.splice(idx, 1);
   save(); render();
 }
 
