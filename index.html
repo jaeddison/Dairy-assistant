@@ -533,6 +533,7 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
 
   </div>
+  </div><!-- end tab4 -->
 
   <!-- TAB 5: EXPORT -->
   <div id="tab5" class="hidden">
@@ -1738,87 +1739,84 @@ function renderCalving() {
   if (currentTab === 4) { setTimeout(initMineralCalc, 50); setTimeout(initMobSplit, 50); }
 }
 
-function renderGroup(key, tableId, countId) {
-  const arr = S[key] || [];
-  const countEl = document.getElementById(countId);
-  if (countEl) countEl.textContent = arr.length ? `— ${arr.length} cows` : "";
-  const el = document.getElementById(tableId);
-  if (!el) return;
-  if (!arr.length) { el.innerHTML = ""; return; }
-
-  const today = todayStr();
-  const isOAD = (key === 'oad');
-  const addedToday = arr.filter(c => c.dateAdded === today);
-  const rest = arr.filter(c => c.dateAdded !== today);
-  const sortFn = (a,b) => a.tag.localeCompare(b.tag, undefined, {numeric:true});
-
-  function oadRowExtra(c) {
-    if (!isOAD) return '';
-    const days = c.dateAdded ? daysSince(c.dateAdded) : 0;
-    const daysLabel = days === 1 ? '1 day' : `${days} days`;
-
-    // Lame indicator — persistent once set, button to add another entry
-    let lameSection = '';
-    if (c.lame && c.lame.length) {
-      // Show each lame entry (foot + days ago)
-      const lameChips = c.lame.map(l => {
-        const lameDays = l.dateAdded ? daysSince(l.dateAdded) : 0;
-        const footLabel = l.foot || '?';
-        const ageLabel = lameDays === 0 ? 'today' : lameDays === 1 ? '1d ago' : `${lameDays}d ago`;
-        return `<span style="font-size:.6rem;background:var(--red,#ef4444);color:#fff;border-radius:3px;padding:1px 4px;margin-left:2px">${footLabel} ${ageLabel}</span>`;
-      }).join('');
-      const lameExpanded = c._lameOpen ? `
-        <span style="display:inline-flex;gap:3px;margin-left:4px">
-          ${['LF','RF','LR','RR'].map(f=>`<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame('${c.id}','${f}')">${f}</button>`).join('')}
-          <button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLame('${c.id}',null)">?</button>
-          <button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLameToggle('${c.id}')">✕</button>
-        </span>` : '';
-      lameSection = `${lameChips}<button class="btn sec" style="font-size:.6rem;padding:2px 4px;margin-left:3px" onclick="oadLameToggle('${c.id}')">+🦵</button>${lameExpanded}`;
-    } else {
-      const lameExpanded = c._lameOpen ? `
-        <span style="display:inline-flex;gap:3px;margin-left:4px">
-          ${['LF','RF','LR','RR'].map(f=>`<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame('${c.id}','${f}')">${f}</button>`).join('')}
-          <button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLame('${c.id}',null)">?</button>
-        </span>` : '';
-      lameSection = `<button class="btn sec" style="font-size:.6rem;padding:2px 6px${c._lameOpen?';background:var(--red,#ef4444);color:#fff;border-color:var(--red,#ef4444)':''}" onclick="oadLameToggle('${c.id}')">${c._lameOpen?'✕ cancel':'Lame'}</button>${lameExpanded}`;
+function _oadRowExtra(c) {
+  var days = c.dateAdded ? daysSince(c.dateAdded) : 0;
+  var daysLabel = days === 1 ? '1 day' : (days + ' days');
+  var lameSection = '';
+  var footBtns = '<span style="display:inline-flex;gap:3px;margin-left:4px">'
+    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame(\'' + c.id + '\',\'LF\')">LF</button>'
+    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame(\'' + c.id + '\',\'RF\')">RF</button>'
+    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame(\'' + c.id + '\',\'LR\')">LR</button>'
+    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame(\'' + c.id + '\',\'RR\')">RR</button>'
+    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLame(\'' + c.id + '\',null)">?</button>'
+    + '</span>';
+  if (c.lame && c.lame.length) {
+    var chips = '';
+    for (var li = 0; li < c.lame.length; li++) {
+      var l = c.lame[li];
+      var ld = l.dateAdded ? daysSince(l.dateAdded) : 0;
+      var fl = l.foot || '?';
+      var al = ld === 0 ? 'today' : (ld === 1 ? '1d ago' : (ld + 'd ago'));
+      chips += '<span style="font-size:.6rem;background:var(--red,#ef4444);color:#fff;border-radius:3px;padding:1px 4px;margin-left:2px">' + fl + ' ' + al + '</span>';
     }
+    var expandBtns = c._lameOpen ? ('<span style="display:inline-flex;gap:3px;margin-left:4px">' + footBtns.replace(/^<span[^>]*>/, '').replace(/<\/span>$/, '') + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLameToggle(\'' + c.id + '\')">&#x2715;</button></span>') : '';
+    lameSection = chips
+      + '<button class="btn sec" style="font-size:.6rem;padding:2px 4px;margin-left:3px" onclick="oadLameToggle(\'' + c.id + '\')">+Lame</button>'
+      + (c._lameOpen ? footBtns : '');
+  } else {
+    var lameBtnStyle = 'font-size:.6rem;padding:2px 6px' + (c._lameOpen ? ';background:var(--red,#ef4444);color:#fff;border-color:var(--red,#ef4444)' : '');
+    var lameBtnLabel = c._lameOpen ? '&#x2715; cancel' : 'Lame';
+    lameSection = '<button class="btn sec" style="' + lameBtnStyle + '" onclick="oadLameToggle(\'' + c.id + '\')">' + lameBtnLabel + '</button>'
+      + (c._lameOpen ? footBtns : '');
+  }
+  var skinnyStyle = c.skinny
+    ? 'background:var(--amber,#f59e0b);color:#000;border-color:var(--amber,#f59e0b)'
+    : '';
+  var skinnyBtn = '<button class="btn sec" style="font-size:.6rem;padding:2px 6px;margin-left:3px;' + skinnyStyle + '" onclick="oadSkinny(\'' + c.id + '\')">Skinny</button>';
+  return '<td style="text-align:right;white-space:nowrap;padding-left:6px">'
+    + '<span style="font-size:.65rem;color:var(--muted);margin-right:6px">' + daysLabel + '</span>'
+    + lameSection
+    + skinnyBtn
+    + '</td>';
+}
 
-    const skinnyActive = c.skinny ? 'style="background:var(--amber,#f59e0b);color:#000;border-color:var(--amber,#f59e0b)"' : '';
-    return `<td style="text-align:right;white-space:nowrap;padding-left:6px">
-      <span style="font-size:.65rem;color:var(--muted);margin-right:6px">${daysLabel}</span>
-      ${lameSection}
-      <button class="btn sec" style="font-size:.6rem;padding:2px 6px;margin-left:3px" ${skinnyActive} onclick="oadSkinny('${c.id}')">Skinny</button>
-    </td>`;
+function _oadSortScore(c) {
+  return (c.lame && c.lame.length ? 2 : 0) + (c.skinny ? 1 : 0);
+}
+
+function renderGroup(key, tableId, countId) {
+  var arr = S[key] || [];
+  var countEl = document.getElementById(countId);
+  if (countEl) countEl.textContent = arr.length ? ('— ' + arr.length + ' cows') : '';
+  var el = document.getElementById(tableId);
+  if (!el) return;
+  if (!arr.length) { el.innerHTML = ''; return; }
+
+  var today = todayStr();
+  var isOAD = (key === 'oad');
+  var addedToday = arr.filter(function(c) { return c.dateAdded === today; });
+  var rest = arr.filter(function(c) { return c.dateAdded !== today; });
+  var tagSort = function(a, b) { return a.tag.localeCompare(b.tag, undefined, {numeric:true}); };
+  var sortFn = isOAD
+    ? function(a, b) { var d = _oadSortScore(b) - _oadSortScore(a); return d !== 0 ? d : tagSort(a,b); }
+    : tagSort;
+
+  function row(c) {
+    return '<tr><td><span class="tag">' + c.tag + '</span></td>' + (isOAD ? _oadRowExtra(c) : '') + '</tr>';
   }
 
-  // For OAD: sort lame+skinny to top, then lame-only, then skinny-only, then by tag
-  function oadSortFn(a, b) {
-    if (!isOAD) return sortFn(a, b);
-    const aLame = !!(a.lame && a.lame.length), bLame = !!(b.lame && b.lame.length);
-    const aSkinny = !!a.skinny, bSkinny = !!b.skinny;
-    const aScore = (aLame ? 2 : 0) + (aSkinny ? 1 : 0);
-    const bScore = (bLame ? 2 : 0) + (bSkinny ? 1 : 0);
-    if (aScore !== bScore) return bScore - aScore;
-    return sortFn(a, b);
-  }
-
-  function cowRow(c) {
-    return `<tr><td><span class="tag">${c.tag}</span></td>${oadRowExtra(c)}</tr>`;
-  }
-
-  let html = '';
+  var html = '';
   if (addedToday.length) {
-    html += `<div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--green);padding:6px 0 4px;display:flex;justify-content:space-between">
-      <span>Added today</span><span>${addedToday.length}</span></div>
-    <table style="margin-bottom:8px">
-      <tbody>${[...addedToday].sort(oadSortFn).map(cowRow).join("")}
-      </tbody></table>`;
+    html += '<div style="font-family:\'JetBrains Mono\',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--green);padding:6px 0 4px;display:flex;justify-content:space-between"><span>Added today</span><span>' + addedToday.length + '</span></div>';
+    html += '<table style="margin-bottom:8px"><tbody>';
+    addedToday.slice().sort(sortFn).forEach(function(c) { html += row(c); });
+    html += '</tbody></table>';
   }
   if (rest.length) {
-    if (addedToday.length) html += `<div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;display:flex;justify-content:space-between"><span>Previous</span><span>${rest.length}</span></div>`;
-    html += `<table>
-      <tbody>${[...rest].sort(oadSortFn).map(cowRow).join("")}
-      </tbody></table>`;
+    if (addedToday.length) html += '<div style="font-family:\'JetBrains Mono\',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0;display:flex;justify-content:space-between"><span>Previous</span><span>' + rest.length + '</span></div>';
+    html += '<table><tbody>';
+    rest.slice().sort(sortFn).forEach(function(c) { html += row(c); });
+    html += '</tbody></table>';
   }
   el.innerHTML = html;
 }
