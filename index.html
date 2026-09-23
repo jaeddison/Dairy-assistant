@@ -1742,36 +1742,55 @@ function renderCalving() {
 function _oadRowExtra(c) {
   var days = c.dateAdded ? daysSince(c.dateAdded) : 0;
   var daysLabel = days === 1 ? '1 day' : (days + ' days');
+
+  // c.lame is now a single object {feet:[], dateAdded:''} or null/undefined
+  var lameRecord = c.lame || null;
   var lameSection = '';
-  var footBtns = '<span style="display:inline-flex;gap:3px;margin-left:4px">'
-    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame(\'' + c.id + '\',\'LF\')">LF</button>'
-    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame(\'' + c.id + '\',\'RF\')">RF</button>'
-    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame(\'' + c.id + '\',\'LR\')">LR</button>'
-    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLame(\'' + c.id + '\',\'RR\')">RR</button>'
-    + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLame(\'' + c.id + '\',null)">?</button>'
-    + '</span>';
-  if (c.lame && c.lame.length) {
-    var chips = '';
-    for (var li = 0; li < c.lame.length; li++) {
-      var l = c.lame[li];
-      var ld = l.dateAdded ? daysSince(l.dateAdded) : 0;
-      var fl = l.foot || '?';
-      var al = ld === 0 ? 'today' : (ld === 1 ? '1d ago' : (ld + 'd ago'));
-      chips += '<span style="font-size:.6rem;background:var(--red,#ef4444);color:#fff;border-radius:3px;padding:1px 4px;margin-left:2px;display:inline-flex;align-items:center;gap:2px">'
-        + fl + ' ' + al
-        + '<button onclick="oadLameDel(\'' + c.id + '\',' + li + ')" style="background:none;border:none;color:#fff;cursor:pointer;font-size:.6rem;padding:0 0 0 2px;line-height:1;opacity:.8">&#x2715;</button>'
-        + '</span>';
+
+  if (lameRecord) {
+    // Show chip with feet (or ?) and ✕ to delete
+    var feetArr = (lameRecord.feet && lameRecord.feet.length) ? lameRecord.feet : [];
+    var feetLabel = feetArr.length ? feetArr.join(' ') : '?';
+    // Chip — clicking it opens the foot editor
+    var chipStyle = 'font-size:.6rem;background:var(--red,#ef4444);color:#fff;border-radius:3px;padding:1px 5px;margin-left:2px;display:inline-flex;align-items:center;gap:3px;cursor:pointer';
+    var chip = '<span style="' + chipStyle + '" onclick="oadLameToggle(\'' + c.id + '\')" title="Edit feet">Lame: ' + feetLabel + '</span>'
+      + '<button onclick="oadLameClear(\'' + c.id + '\')" style="background:none;border:none;color:var(--red,#ef4444);cursor:pointer;font-size:.75rem;padding:0 0 0 1px;line-height:1" title="Clear lame">&#x2715;</button>';
+
+    // Foot picker (shown when _lameOpen)
+    var picker = '';
+    if (c._lameOpen) {
+      var FEET = ['LF','RF','LR','RR'];
+      picker = '<span style="display:inline-flex;gap:3px;margin-left:4px;align-items:center">';
+      for (var fi = 0; fi < FEET.length; fi++) {
+        var f = FEET[fi];
+        var selected = feetArr.indexOf(f) >= 0;
+        var fStyle = selected
+          ? 'font-size:.6rem;padding:2px 5px;background:var(--red,#ef4444);color:#fff;border-color:var(--red,#ef4444)'
+          : 'font-size:.6rem;padding:2px 5px';
+        picker += '<button class="btn sec" style="' + fStyle + '" onclick="oadLameToggleFoot(\'' + c.id + '\',\'' + f + '\')">' + f + '</button>';
+      }
+      // Done button closes picker
+      picker += '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLameToggle(\'' + c.id + '\')">Done</button>';
+      picker += '</span>';
     }
-    var expandBtns = c._lameOpen ? ('<span style="display:inline-flex;gap:3px;margin-left:4px">' + footBtns.replace(/^<span[^>]*>/, '').replace(/<\/span>$/, '') + '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLameToggle(\'' + c.id + '\')">&#x2715;</button></span>') : '';
-    lameSection = chips
-      + '<button class="btn sec" style="font-size:.6rem;padding:2px 4px;margin-left:3px" onclick="oadLameToggle(\'' + c.id + '\')">+Lame</button>'
-      + (c._lameOpen ? footBtns : '');
+    lameSection = chip + picker;
   } else {
-    var lameBtnStyle = 'font-size:.6rem;padding:2px 6px' + (c._lameOpen ? ';background:var(--red,#ef4444);color:#fff;border-color:var(--red,#ef4444)' : '');
-    var lameBtnLabel = c._lameOpen ? '&#x2715; cancel' : 'Lame';
-    lameSection = '<button class="btn sec" style="' + lameBtnStyle + '" onclick="oadLameToggle(\'' + c.id + '\')">' + lameBtnLabel + '</button>'
-      + (c._lameOpen ? footBtns : '');
+    // No lame record — show Lame button (highlighted when picker open)
+    var btnStyle = 'font-size:.6rem;padding:2px 6px' + (c._lameOpen ? ';background:var(--red,#ef4444);color:#fff;border-color:var(--red,#ef4444)' : '');
+    var btnLabel = c._lameOpen ? '&#x2715; cancel' : 'Lame';
+    lameSection = '<button class="btn sec" style="' + btnStyle + '" onclick="oadLameToggle(\'' + c.id + '\')">' + btnLabel + '</button>';
+    if (c._lameOpen) {
+      var FEET2 = ['LF','RF','LR','RR'];
+      lameSection += '<span style="display:inline-flex;gap:3px;margin-left:4px;align-items:center">';
+      for (var fi2 = 0; fi2 < FEET2.length; fi2++) {
+        lameSection += '<button class="btn sec" style="font-size:.6rem;padding:2px 5px" onclick="oadLameSelectFoot(\'' + c.id + '\',\'' + FEET2[fi2] + '\')">' + FEET2[fi2] + '</button>';
+      }
+      // Record without specifying a foot
+      lameSection += '<button class="btn sec" style="font-size:.6rem;padding:2px 5px;color:var(--muted)" onclick="oadLameSelectFoot(\'' + c.id + '\',null)">?</button>';
+      lameSection += '</span>';
+    }
   }
+
   var skinnyStyle = c.skinny
     ? 'background:var(--amber,#f59e0b);color:#000;border-color:var(--amber,#f59e0b)'
     : '';
@@ -1784,7 +1803,7 @@ function _oadRowExtra(c) {
 }
 
 function _oadSortScore(c) {
-  return (c.lame && c.lame.length ? 2 : 0) + (c.skinny ? 1 : 0);
+  return (c.lame ? 2 : 0) + (c.skinny ? 1 : 0);
 }
 
 function renderGroup(key, tableId, countId) {
@@ -1825,39 +1844,56 @@ function renderGroup(key, tableId, countId) {
 }
 
 // ── OAD lame / skinny helpers
+// c.lame = single record { feet: ['LF','RR',...], dateAdded: 'YYYY-MM-DD' } or null
+
 function oadLameToggle(id) {
-  const arr = S.oad || [];
-  const cow = arr.find(c => c.id === id);
+  // Opens/closes the foot picker on an existing lame record
+  var cow = (S.oad || []).find(function(c) { return c.id === id; });
   if (!cow) return;
   cow._lameOpen = !cow._lameOpen;
   render();
 }
-function oadLame(id, foot) {
-  const arr = S.oad || [];
-  const cow = arr.find(c => c.id === id);
+
+function oadLameSelectFoot(id, foot) {
+  // Called when no lame record exists yet — creates the record and adds to main register
+  var cow = (S.oad || []).find(function(c) { return c.id === id; });
   if (!cow) return;
-  // Remove _lameOpen flag (transient UI state, not saved)
   delete cow._lameOpen;
-  // Persist lame record on the OAD cow itself
-  if (!cow.lame) cow.lame = [];
-  cow.lame.push({ foot: foot || null, dateAdded: todayStr() });
-  // Also add to main lame register
-  S.lameCows.push({ id: uid(), tag: cow.tag, location: 'OAD', feet: foot ? [foot] : [], notes: '', dateAdded: todayStr() });
-  save(); render();
-}
-function oadSkinny(id) {
-  const arr = S.oad || [];
-  const cow = arr.find(c => c.id === id);
-  if (!cow) return;
-  cow.skinny = !cow.skinny;
+  var feet = foot ? [foot] : [];
+  cow.lame = { feet: feet, dateAdded: todayStr() };
+  // Mirror to main lame register
+  if (!S.lameCows) S.lameCows = [];
+  S.lameCows.push({ id: uid(), tag: cow.tag, location: 'OAD', feet: feet.slice(), notes: '', dateAdded: todayStr() });
   save(); render();
 }
 
-function oadLameDel(id, idx) {
-  const arr = S.oad || [];
-  const cow = arr.find(c => c.id === id);
+function oadLameToggleFoot(id, foot) {
+  // Toggles a foot on/off on an existing lame record
+  var cow = (S.oad || []).find(function(c) { return c.id === id; });
   if (!cow || !cow.lame) return;
-  cow.lame.splice(idx, 1);
+  if (!cow.lame.feet) cow.lame.feet = [];
+  var idx = cow.lame.feet.indexOf(foot);
+  if (idx >= 0) {
+    cow.lame.feet.splice(idx, 1);
+  } else {
+    cow.lame.feet.push(foot);
+  }
+  save(); render();
+}
+
+function oadLameClear(id) {
+  // Deletes the lame record from the OAD cow (does NOT touch main lame register)
+  var cow = (S.oad || []).find(function(c) { return c.id === id; });
+  if (!cow) return;
+  delete cow.lame;
+  delete cow._lameOpen;
+  save(); render();
+}
+
+function oadSkinny(id) {
+  var cow = (S.oad || []).find(function(c) { return c.id === id; });
+  if (!cow) return;
+  cow.skinny = !cow.skinny;
   save(); render();
 }
 
