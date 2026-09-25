@@ -1739,6 +1739,19 @@ function renderCalving() {
   if (currentTab === 4) { setTimeout(initMineralCalc, 50); setTimeout(initMobSplit, 50); }
 }
 
+function _oadRecentTreatment(tag) {
+  // Returns true if this tag has a cleared lame entry in lameArchive within the last 30 days
+  var archive = S.lameArchive || [];
+  for (var i = 0; i < archive.length; i++) {
+    var e = archive[i];
+    if (e.tag === tag) {
+      var d = e.clearedDate ? daysSince(e.clearedDate) : 999;
+      if (d <= 30) return true;
+    }
+  }
+  return false;
+}
+
 function _oadRowExtra(c) {
   var days = c.dateAdded ? daysSince(c.dateAdded) : 0;
   var daysLabel = days === 1 ? '1 day' : (days + ' days');
@@ -1797,7 +1810,11 @@ function _oadRowExtra(c) {
     ? 'background:var(--amber,#f59e0b);color:#000;border-color:var(--amber,#f59e0b)'
     : '';
   var skinnyBtn = '<button class="btn sec" style="font-size:.6rem;padding:2px 6px;margin-left:3px;' + skinnyStyle + '" onclick="oadSkinny(\'' + c.id + '\')">Skinny</button>';
+  var tBadge = _oadRecentTreatment(c.tag)
+    ? '<span style="font-size:.55rem;font-weight:700;background:var(--amber,#f59e0b);color:#000;border-radius:3px;padding:1px 4px;margin-right:4px" title="Lame treatment in last 30 days">T</span>'
+    : '';
   return '<td style="text-align:right;white-space:nowrap;padding-left:6px">'
+    + tBadge
     + '<span style="font-size:.65rem;color:var(--muted);margin-right:6px">' + daysLabel + '</span>'
     + lameSection
     + skinnyBtn
@@ -1820,13 +1837,29 @@ function renderGroup(key, tableId, countId) {
   var isOAD = (key === 'oad');
   var addedToday = arr.filter(function(c) { return c.dateAdded === today; });
   var rest = arr.filter(function(c) { return c.dateAdded !== today; });
+  var showDays = (key === 'oad' || key === 'peno');
   var tagSort = function(a, b) { return a.tag.localeCompare(b.tag, undefined, {numeric:true}); };
+  // For peno and milking herd, sort longest-in first so overdue cows float up
+  var daysSort = function(a, b) {
+    var da = a.dateAdded ? daysSince(a.dateAdded) : 0;
+    var db = b.dateAdded ? daysSince(b.dateAdded) : 0;
+    var d = db - da;
+    return d !== 0 ? d : tagSort(a, b);
+  };
   var sortFn = isOAD
     ? function(a, b) { var d = _oadSortScore(b) - _oadSortScore(a); return d !== 0 ? d : tagSort(a,b); }
     : tagSort;
 
   function row(c) {
-    return '<tr><td><span class="tag">' + c.tag + '</span></td>' + (isOAD ? _oadRowExtra(c) : '') + '</tr>';
+    var extra = '';
+    if (isOAD) {
+      extra = _oadRowExtra(c);
+    } else if (showDays) {
+      var d = c.dateAdded ? daysSince(c.dateAdded) : 0;
+      var dl = d === 0 ? 'today' : (d === 1 ? '1 day' : (d + ' days'));
+      extra = '<td style="text-align:right;padding-left:8px"><span style="font-size:.65rem;color:var(--muted)">' + dl + '</span></td>';
+    }
+    return '<tr><td><span class="tag">' + c.tag + '</span></td>' + extra + '</tr>';
   }
 
   var html = '';
