@@ -1753,8 +1753,10 @@ function _oadRowExtra(c) {
     var feetLabel = feetArr.length ? feetArr.join(' ') : '?';
     // Chip — clicking it opens the foot editor
     var chipStyle = 'font-size:.6rem;background:var(--red,#ef4444);color:#fff;border-radius:3px;padding:1px 5px;margin-left:2px;display:inline-flex;align-items:center;gap:3px;cursor:pointer';
-    var chip = '<span style="' + chipStyle + '" onclick="oadLameToggle(\'' + c.id + '\')" title="Edit feet">Lame: ' + feetLabel + '</span>'
-      + '<button onclick="oadLameClear(\'' + c.id + '\')" style="background:none;border:none;color:var(--red,#ef4444);cursor:pointer;font-size:.75rem;padding:0 0 0 1px;line-height:1" title="Clear lame">&#x2715;</button>';
+    var chip = '<span style="' + chipStyle + '">'
+      + '<span onclick="oadLameToggle(\'' + c.id + '\')" style="cursor:pointer" title="Edit feet">Lame: ' + feetLabel + '</span>'
+      + '<button onclick="oadLameClear(\'' + c.id + '\')" style="background:rgba(0,0,0,.25);border:none;color:#fff;cursor:pointer;font-size:.6rem;padding:1px 3px;border-radius:2px;line-height:1;margin-left:3px" title="Clear lame">&#x2715;</button>'
+      + '</span>';
 
     // Foot picker (shown when _lameOpen)
     var picker = '';
@@ -1854,21 +1856,40 @@ function oadLameToggle(id) {
   render();
 }
 
+function _oadPrevLameNotes(tag) {
+  // Build a previous-history string from lameArchive for this tag
+  var archive = S.lameArchive || [];
+  var prev = archive.filter(function(e) { return e.tag === tag; });
+  if (!prev.length) return '';
+  var lines = prev.map(function(e) {
+    var feet = (e.feet && e.feet.length) ? e.feet.join('/') : '?';
+    var loc = e.location || '';
+    var cleared = e.clearedDate || e.dateAdded || '';
+    return feet + (loc ? ' ' + loc : '') + (cleared ? ' (' + cleared + ')' : '');
+  });
+  return 'Prev: ' + lines.join('; ');
+}
+
 function oadLameSelectFoot(id, foot) {
   // Called when no lame record exists yet — creates the record and adds to main register
   var cow = (S.oad || []).find(function(c) { return c.id === id; });
   if (!cow) return;
   delete cow._lameOpen;
   var feet = foot ? [foot] : [];
-  cow.lame = { feet: feet, dateAdded: todayStr() };
-  // Mirror to main lame register
+  var dateAdded = todayStr();
+  cow.lame = { feet: feet, dateAdded: dateAdded };
+  // Auto-fill notes with previous lame history for this tag
+  var notes = _oadPrevLameNotes(cow.tag);
+  // Mirror to main lame register — store the lame register id on the OAD record so we can update it later
   if (!S.lameCows) S.lameCows = [];
-  S.lameCows.push({ id: uid(), tag: cow.tag, location: 'OAD', feet: feet.slice(), notes: '', dateAdded: todayStr() });
+  var lameId = uid();
+  cow.lame._lameRegId = lameId; // link OAD lame record → lame register entry
+  S.lameCows.push({ id: lameId, tag: cow.tag, location: 'OAD', feet: feet.slice(), notes: notes, dateAdded: dateAdded });
   save(); render();
 }
 
 function oadLameToggleFoot(id, foot) {
-  // Toggles a foot on/off on an existing lame record
+  // Toggles a foot on/off on an existing lame record; syncs to lame register entry
   var cow = (S.oad || []).find(function(c) { return c.id === id; });
   if (!cow || !cow.lame) return;
   if (!cow.lame.feet) cow.lame.feet = [];
@@ -1877,6 +1898,13 @@ function oadLameToggleFoot(id, foot) {
     cow.lame.feet.splice(idx, 1);
   } else {
     cow.lame.feet.push(foot);
+  }
+  // Update the linked lame register entry (no duplication)
+  if (cow.lame._lameRegId) {
+    var regEntry = (S.lameCows || []).find(function(e) { return e.id === cow.lame._lameRegId; });
+    if (regEntry) {
+      regEntry.feet = cow.lame.feet.slice();
+    }
   }
   save(); render();
 }
@@ -1944,7 +1972,11 @@ function addLame() {
   const loc = document.getElementById("lameLoc").value;
   const notes = document.getElementById("lameNotes").value.trim();
   if (!tag) return;
-  S.lameCows.push({ id: uid(), tag, location: loc, feet: [...selectedFeet], notes, dateAdded: todayStr() });
+  // Auto-prepend previous lame history to notes if not already entered
+  var prevNote = _oadPrevLameNotes(tag);
+  var fullNotes = notes ? notes : prevNote;
+  if (notes && prevNote) fullNotes = prevNote + ' | ' + notes;
+  S.lameCows.push({ id: uid(), tag, location: loc, feet: [...selectedFeet], notes: fullNotes, dateAdded: todayStr() });
   document.getElementById("lameTag").value = "";
   document.getElementById("lameNotes").value = "";
   selectedFeet = [];
