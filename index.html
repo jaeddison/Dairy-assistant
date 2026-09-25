@@ -420,7 +420,7 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card" id="colCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('colCard','colBody')">
         <h2 style="border:none;padding:0;margin:0">Colostrum Mob <span id="colCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-        <span id="colCard-chev" style="color:var(--muted);font-size:.8rem">▾</span>
+        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('colostrumMob',this);event.stopPropagation()">Copy list</button><span id="colCard-chev" style="color:var(--muted);font-size:.8rem">▾</span></span>
       </div>
       <div id="colBody">
       <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px;font-style:italic">Sorted by days in mob. ⚠ Amber 5d · Red 7d+</p>
@@ -435,7 +435,7 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card" id="milkCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('milkCard','milkBody')">
         <h2 style="border:none;padding:0;margin:0">Milking Herd <span id="milkCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-        <span id="milkCard-chev" style="color:var(--muted);font-size:.8rem">▾</span>
+        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('milkingHerd',this);event.stopPropagation()">Copy list</button><span id="milkCard-chev" style="color:var(--muted);font-size:.8rem">▾</span></span>
       </div>
       <div id="milkBody">
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:12px">
@@ -469,7 +469,7 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card" id="oadCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('oadCard','oadBody')">
         <h2 style="border:none;padding:0;margin:0">Once-a-Day (OAD) <span id="oadCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-        <span id="oadCard-chev" style="color:var(--muted);font-size:.8rem">▾</span>
+        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('oad',this);event.stopPropagation()">Copy list</button><span id="oadCard-chev" style="color:var(--muted);font-size:.8rem">▾</span></span>
       </div>
       <div id="oadBody">
       <div id="oadTable"></div>
@@ -487,7 +487,7 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card" id="penoCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('penoCard','penoBody')">
         <h2 style="border:none;padding:0;margin:0">Penicillin (Peno) <span id="penoCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-        <span id="penoCard-chev" style="color:var(--muted);font-size:.8rem">▾</span>
+        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('peno',this);event.stopPropagation()">Copy list</button><span id="penoCard-chev" style="color:var(--muted);font-size:.8rem">▾</span></span>
       </div>
       <div id="penoBody">
       <div id="penoTable"></div>
@@ -552,6 +552,12 @@ input:focus,select:focus{border-color:var(--accent)}
       <h2>Heifer Bay</h2>
       <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Cows calved in this bay are treated as heifers in the colostrum dot counter — they start with 1 dot and are ready at 4 dots (one day earlier than cows).</p>
       <div style="display:flex;gap:6px;flex-wrap:wrap" id="heiferBayPicker"></div>
+    </div>
+
+    <div class="card">
+      <h2>Export Groups</h2>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Download an Excel file listing the tag numbers in each group (Colostrum, OAD, Milking Herd, Peno).</p>
+      <button class="btn" onclick="exportGroupsXlsx()">Download Groups as Excel</button>
     </div>
 
     <div class="card">
@@ -1585,6 +1591,71 @@ function copyCalvedList() {
     const btn = document.querySelector('[onclick="copyCalvedList()"]');
     if (btn) { btn.textContent = '✓ Copied'; setTimeout(()=>btn.textContent='Copy list',2000); }
   });
+}
+
+function copyGroupTags(key, btn) {
+  var arr = S[key] || [];
+  var tags = arr.map(function(c){ return c.tag; });
+  tags.sort(function(a,b){ return (parseInt(a)||0)-(parseInt(b)||0); });
+  var text = tags.join('\n');
+  if (!text) { if(btn){btn.textContent='(empty)';setTimeout(function(){btn.textContent='Copy list';},1500);} return; }
+  navigator.clipboard.writeText(text).then(function(){
+    if(btn){ btn.textContent='✓ Copied'; setTimeout(function(){btn.textContent='Copy list';},2000); }
+  }).catch(function(){
+    if(btn){ btn.textContent='Failed'; setTimeout(function(){btn.textContent='Copy list';},2000); }
+  });
+}
+
+function exportGroupsXlsx() {
+  // Build data: one column per group
+  var groups = [
+    { label: 'Colostrum', key: 'colostrumMob' },
+    { label: 'OAD', key: 'oad' },
+    { label: 'Milking Herd', key: 'milkingHerd' },
+    { label: 'Peno', key: 'peno' }
+  ];
+  var cols = groups.map(function(g){
+    var arr = S[g.key] || [];
+    var tags = arr.map(function(c){ return c.tag; });
+    tags.sort(function(a,b){ return (parseInt(a)||0)-(parseInt(b)||0); });
+    return { label: g.label, tags: tags };
+  });
+  var maxRows = cols.reduce(function(m,c){ return Math.max(m,c.tags.length); },0);
+
+  // Build CSV-style TSV as a fallback, but use SheetJS if available
+  function buildWithSheetJS(XLSX) {
+    var wsData = [cols.map(function(c){ return c.label; })];
+    for (var r = 0; r < maxRows; r++) {
+      wsData.push(cols.map(function(c){ return c.tags[r] !== undefined ? c.tags[r] : ''; }));
+    }
+    var ws = XLSX.utils.aoa_to_sheet(wsData);
+    // Column widths
+    ws['!cols'] = cols.map(function(){ return {wch:14}; });
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Groups');
+    XLSX.writeFile(wb, 'dairy-groups.xlsx');
+  }
+
+  if (window.XLSX) {
+    buildWithSheetJS(window.XLSX);
+    return;
+  }
+  // Load SheetJS on demand
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+  s.onload = function(){ buildWithSheetJS(window.XLSX); };
+  s.onerror = function(){
+    // Fallback: CSV download
+    var csv = cols.map(function(c){ return c.label; }).join(',') + '\n';
+    for (var r = 0; r < maxRows; r++) {
+      csv += cols.map(function(c){ return c.tags[r] !== undefined ? c.tags[r] : ''; }).join(',') + '\n';
+    }
+    var a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'dairy-groups.csv';
+    a.click();
+  };
+  document.head.appendChild(s);
 }
 
 function renderMineralCalc() {
