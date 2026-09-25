@@ -557,7 +557,10 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card">
       <h2>Export Groups</h2>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Download an Excel file listing the tag numbers in each group (Colostrum, OAD, Milking Herd, Peno).</p>
-      <button class="btn" onclick="exportGroupsXlsx()">Download Groups as Excel</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn" onclick="exportGroupsXlsx()">Download Groups as Excel</button>
+        <button class="btn sec" onclick="dedupAllGroups();this.textContent='✓ Done';setTimeout(()=>this.textContent='Fix duplicates',2000)" title="Remove any duplicate tag entries within each group">Fix duplicates</button>
+      </div>
     </div>
 
     <div class="card">
@@ -2160,15 +2163,33 @@ function colExit(id, dest) {
   const c = S.colostrumMob.find(x=>x.id===id); if (!c) return;
   S.colostrumMob = S.colostrumMob.filter(x=>x.id!==id);
   if (!S[dest]) S[dest] = [];
-  S[dest].push({ id: uid(), tag: c.tag, dateAdded: todayStr() });
+  // Don't add if already present in destination
+  if (!S[dest].find(x=>x.tag===c.tag)) {
+    S[dest].push({ id: uid(), tag: c.tag, dateAdded: todayStr() });
+  }
   save(); render();
 }
 function addToGroup(group, inputId) {
   const raw = document.getElementById(inputId).value.trim();
   if (!raw) return;
   if (!S[group]) S[group] = [];
-  parseTags(raw).forEach(tag => { removeDuplicates(tag, group); S[group].push({ id: uid(), tag, dateAdded: todayStr() }); });
+  parseTags(raw).forEach(tag => {
+    removeDuplicates(tag, group);
+    // Skip if already in this group
+    if (!S[group].find(x=>x.tag===tag)) {
+      S[group].push({ id: uid(), tag, dateAdded: todayStr() });
+    }
+  });
   document.getElementById(inputId).value = "";
+  save(); render();
+}
+function dedupAllGroups() {
+  // Remove any duplicate tags within each group, keeping the first occurrence
+  ['milkingHerd','oad','peno','colostrumMob','newMoms','watchList','lameCows'].forEach(g => {
+    if (!S[g]) return;
+    const seen = new Set();
+    S[g] = S[g].filter(c => { if (seen.has(c.tag)) return false; seen.add(c.tag); return true; });
+  });
   save(); render();
 }
 function delFromGroup(group, id) { if (S[group]) { S[group] = S[group].filter(c=>c.id!==id); save(); render(); } }
