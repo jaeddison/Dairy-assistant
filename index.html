@@ -420,9 +420,9 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card" id="colCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('colCard','colBody')">
         <h2 style="border:none;padding:0;margin:0">Colostrum Mob <span id="colCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('colostrumMob',this);event.stopPropagation()">Copy list</button><span id="colCard-chev" style="color:var(--muted);font-size:.8rem">▾</span></span>
+        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('colostrumMob',this);event.stopPropagation()">Copy list</button><span id="colCard-chev" style="color:var(--muted);font-size:.8rem">▸</span></span>
       </div>
-      <div id="colBody">
+      <div id="colBody" style="display:none">
       <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px;font-style:italic">Sorted by days in mob. ⚠ Amber 5d · Red 7d+</p>
       <div id="colTable"></div>
       <div class="graze-calc">
@@ -435,9 +435,9 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card" id="milkCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('milkCard','milkBody')">
         <h2 style="border:none;padding:0;margin:0">Milking Herd <span id="milkCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('milkingHerd',this);event.stopPropagation()">Copy list</button><span id="milkCard-chev" style="color:var(--muted);font-size:.8rem">▾</span></span>
+        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('milkingHerd',this);event.stopPropagation()">Copy list</button><span id="milkCard-chev" style="color:var(--muted);font-size:.8rem">▸</span></span>
       </div>
-      <div id="milkBody">
+      <div id="milkBody" style="display:none">
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:12px">
         <div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Mob Split</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
@@ -450,10 +450,21 @@ input:focus,select:focus{border-color:var(--accent)}
             <div id="mob2Calc" style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--accent);padding:8px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px">—</div>
           </div>
           <div>
-            <label style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Mob 3</label>
-            <input type="number" id="mob3Input" min="0" style="width:100%" oninput="updateMobSplit()">
+            <label style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Staph</label>
+            <div id="staphCountDisp" style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--accent);padding:8px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px">0</div>
           </div>
         </div>
+      </div>
+      <!-- Staph Herd -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted)">Staph Herd <span id="staphCount" style="color:var(--text)"></span></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="staphTag" placeholder="Tag #" inputmode="numeric" style="width:80px;font-size:.78rem;padding:3px 6px">
+            <button class="btn sec" style="font-size:.72rem;padding:3px 8px" onclick="staphAdd()">Add</button>
+          </div>
+        </div>
+        <div id="staphList" style="font-family:'JetBrains Mono',monospace;font-size:.75rem;line-height:1.8;color:var(--text)"></div>
       </div>
       <div id="milkTable"></div>
       <div class="graze-calc">
@@ -469,9 +480,9 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card" id="oadCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('oadCard','oadBody')">
         <h2 style="border:none;padding:0;margin:0">Once-a-Day (OAD) <span id="oadCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('oad',this);event.stopPropagation()">Copy list</button><span id="oadCard-chev" style="color:var(--muted);font-size:.8rem">▾</span></span>
+        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('oad',this);event.stopPropagation()">Copy list</button><span id="oadCard-chev" style="color:var(--muted);font-size:.8rem">▸</span></span>
       </div>
-      <div id="oadBody">
+      <div id="oadBody" style="display:none">
       <div id="oadTable"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
@@ -487,9 +498,9 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card" id="penoCard">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px" onclick="toggleSection('penoCard','penoBody')">
         <h2 style="border:none;padding:0;margin:0">Penicillin (Peno) <span id="penoCount" style="font-size:.75rem;color:var(--muted);font-weight:400"></span></h2>
-        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('peno',this);event.stopPropagation()">Copy list</button><span id="penoCard-chev" style="color:var(--muted);font-size:.8rem">▾</span></span>
+        <span style="display:flex;align-items:center;gap:8px"><button class="btn sec" style="font-size:.62rem;padding:2px 8px" onclick="copyGroupTags('peno',this);event.stopPropagation()">Copy list</button><span id="penoCard-chev" style="color:var(--muted);font-size:.8rem">▸</span></span>
       </div>
-      <div id="penoBody">
+      <div id="penoBody" style="display:none">
       <div id="penoTable"></div>
       <div class="graze-calc">
         <label>m² / cow</label>
@@ -629,7 +640,7 @@ input:focus,select:focus{border-color:var(--accent)}
 <script>
 const BAYS = ["Bay 1","Bay 2","Bay 3","Bay 4","Bay 5","Bay 6","Penicillin Paddock"];
 const FOOT_LABELS = {LF:"Left Front",RF:"Right Front",LR:"Left Rear",RR:"Right Rear"};
-const ALL_GROUPS = ['newMoms','colostrumMob','milkingHerd','oad','peno','watchList','calvedList'];
+const ALL_GROUPS = ['newMoms','colostrumMob','milkingHerd','staphCows','oad','peno','watchList','calvedList'];
 
 let S = freshState();
 let G = {col:100, milk:128, oad:100, peno:100};
@@ -644,7 +655,7 @@ let _receivingSnapshot = false;  // blocks saves during incoming snapshot proces
 function freshState() {
   return {
     bays: {"Bay 1":0,"Bay 2":0,"Bay 3":0,"Bay 4":0,"Bay 5":0,"Bay 6":0,"Penicillin Paddock":0},
-    treatments: [], newMoms: [], colostrumMob: [], milkingHerd: [],
+    treatments: [], newMoms: [], colostrumMob: [], milkingHerd: [], staphCows: [],
     oad: [], peno: [], lameCows: [], lameArchive: [],
     watchList: [], calvedList: [], calvingHistory: [], usedKeeperTags: [], cowDeaths: [], heiferBay: "Bay 6", tallySnapshots: [], mob1: 0, mob2: 0, mob3: 0
   };
@@ -712,7 +723,7 @@ window.startFirestoreSync = function() {
     _snapshotReceived = true;
     if (snap.exists()) {
       const d = snap.data();
-      ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
+      ['treatments','newMoms','colostrumMob','milkingHerd','staphCows','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
         .forEach(k => { d[k] = d[k] || []; });
       if (!d.heiferBay) d.heiferBay = 'Bay 6';
       d.tallySnapshots = d.tallySnapshots || [];
@@ -852,13 +863,47 @@ function toggleSection(cardId, bodyId) {
 
 function updateMobSplit() {
   const total = S.milkingHerd.length;
+  const staph = (S.staphCows || []).length;
   const mob1 = parseInt(document.getElementById('mob1Input')?.value||0)||0;
-  const mob3 = parseInt(document.getElementById('mob3Input')?.value||0)||0;
-  const mob2 = Math.max(0, total - mob1 - mob3);
-  S.mob1 = mob1; S.mob2 = mob2; S.mob3 = mob3;
+  const mob2 = Math.max(0, total - mob1 - staph);
+  S.mob1 = mob1; S.mob2 = mob2; S.mob3 = staph;
   const calc = document.getElementById('mob2Calc');
   if (calc) calc.textContent = mob2;
+  const stDisp = document.getElementById('staphCountDisp');
+  if (stDisp) stDisp.textContent = staph;
   save();
+}
+
+function staphAdd() {
+  var raw = (document.getElementById('staphTag').value || '').trim();
+  if (!raw) return;
+  if (!S.staphCows) S.staphCows = [];
+  parseTags(raw).forEach(function(tag) {
+    if (!S.staphCows.find(function(c){ return c.tag === tag; }))
+      S.staphCows.push({ id: uid(), tag: tag, dateAdded: todayStr() });
+  });
+  document.getElementById('staphTag').value = '';
+  save(); renderStaph(); updateMobSplit();
+}
+
+function staphRemove(tag) {
+  S.staphCows = (S.staphCows || []).filter(function(c){ return c.tag !== tag; });
+  save(); renderStaph(); updateMobSplit();
+}
+
+function renderStaph() {
+  var arr = (S.staphCows || []).slice().sort(function(a,b){ return (parseInt(a.tag)||0)-(parseInt(b.tag)||0); });
+  var countEl = document.getElementById('staphCount');
+  if (countEl) countEl.textContent = arr.length ? '— ' + arr.length : '';
+  var el = document.getElementById('staphList');
+  if (!el) return;
+  if (!arr.length) { el.innerHTML = '<span style="color:var(--muted);font-size:.72rem">None</span>'; return; }
+  el.innerHTML = arr.map(function(c){
+    return '<span style="display:inline-flex;align-items:center;gap:3px;margin:0 6px 4px 0">'
+      + '<span class="tag">' + c.tag + '</span>'
+      + '<button onclick="staphRemove(\'' + c.tag + '\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.7rem;padding:0 2px;line-height:1" title="Remove">✕</button>'
+      + '</span>';
+  }).join('');
 }
 
 function render() {
@@ -1615,6 +1660,7 @@ function exportGroupsXlsx() {
     { label: 'Colostrum', key: 'colostrumMob' },
     { label: 'OAD', key: 'oad' },
     { label: 'Milking Herd', key: 'milkingHerd' },
+    { label: 'Staph', key: 'staphCows' },
     { label: 'Peno', key: 'peno' }
   ];
   var cols = groups.map(function(g){
@@ -1682,9 +1728,7 @@ function renderMineralCalc() {
 
 function initMobSplit() {
   const m1 = document.getElementById('mob1Input');
-  const m3 = document.getElementById('mob3Input');
   if (m1) m1.value = S.mob1 || '';
-  if (m3) m3.value = S.mob3 || '';
   updateMobSplit();
 }
 
@@ -1808,6 +1852,7 @@ function renderCalving() {
   renderGroup('milkingHerd','milkTable','milkCount');
   renderGroup('oad','oadTable','oadCount');
   renderGroup('peno','penoTable','penoCount');
+  renderStaph();
   // Refresh graze calcs whenever cow numbers change
   ['col','milk','oad','peno'].forEach(k => updateGraze(k));
   if (currentTab === 4) { setTimeout(initMineralCalc, 50); setTimeout(initMobSplit, 50); }
@@ -1909,17 +1954,11 @@ function renderGroup(key, tableId, countId) {
 
   var today = todayStr();
   var isOAD = (key === 'oad');
+  var isMilk = (key === 'milkingHerd');
   var addedToday = arr.filter(function(c) { return c.dateAdded === today; });
   var rest = arr.filter(function(c) { return c.dateAdded !== today; });
   var showDays = (key === 'oad' || key === 'peno');
   var tagSort = function(a, b) { return a.tag.localeCompare(b.tag, undefined, {numeric:true}); };
-  // For peno and milking herd, sort longest-in first so overdue cows float up
-  var daysSort = function(a, b) {
-    var da = a.dateAdded ? daysSince(a.dateAdded) : 0;
-    var db = b.dateAdded ? daysSince(b.dateAdded) : 0;
-    var d = db - da;
-    return d !== 0 ? d : tagSort(a, b);
-  };
   var sortFn = isOAD
     ? function(a, b) { var d = _oadSortScore(b) - _oadSortScore(a); return d !== 0 ? d : tagSort(a,b); }
     : tagSort;
@@ -1934,6 +1973,35 @@ function renderGroup(key, tableId, countId) {
       extra = '<td style="text-align:right;padding-left:8px"><span style="font-size:.65rem;color:var(--muted)">' + dl + '</span></td>';
     }
     return '<tr><td><span class="tag">' + c.tag + '</span></td>' + extra + '</tr>';
+  }
+
+  // Milking herd: render as compact multi-column grid instead of one long table
+  if (isMilk) {
+    var allMilk = arr.slice().sort(tagSort);
+    var COLS = 6;
+    var perCol = Math.ceil(allMilk.length / COLS);
+    var html = '';
+    if (addedToday.length) {
+      html += '<div style="font-family:\'JetBrains Mono\',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--green);padding:6px 0 4px;display:flex;justify-content:space-between"><span>Added today</span><span>' + addedToday.length + '</span></div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:2px 8px;margin-bottom:8px">';
+      addedToday.slice().sort(tagSort).forEach(function(c){ html += '<span class="tag">' + c.tag + '</span>'; });
+      html += '</div>';
+    }
+    if (rest.length) {
+      if (addedToday.length) html += '<div style="font-family:\'JetBrains Mono\',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0">All cows</div>';
+      // Split into COLS columns
+      html += '<div style="display:grid;grid-template-columns:repeat(' + COLS + ',1fr);gap:1px 0">';
+      // Fill column by column
+      for (var ci = 0; ci < COLS; ci++) {
+        var slice = rest.slice().sort(tagSort).slice(ci * perCol, (ci + 1) * perCol);
+        html += '<div>';
+        slice.forEach(function(c){ html += '<div style="font-family:\'JetBrains Mono\',monospace;font-size:.72rem;padding:1px 0;white-space:nowrap">' + c.tag + '</div>'; });
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    el.innerHTML = html;
+    return;
   }
 
   var html = '';
@@ -2185,7 +2253,7 @@ function addToGroup(group, inputId) {
 }
 function dedupAllGroups() {
   // Remove any duplicate tags within each group, keeping the first occurrence
-  ['milkingHerd','oad','peno','colostrumMob','newMoms','watchList','lameCows'].forEach(g => {
+  ['milkingHerd','staphCows','oad','peno','colostrumMob','newMoms','watchList','lameCows'].forEach(g => {
     if (!S[g]) return;
     const seen = new Set();
     S[g] = S[g].filter(c => { if (seen.has(c.tag)) return false; seen.add(c.tag); return true; });
@@ -2288,6 +2356,9 @@ function doExport() {
     "", "=== MILKING HERD ===",
     `Total: ${S.milkingHerd.length}`,
     !S.milkingHerd.length?"(none)":S.milkingHerd.map(c=>`Tag ${c.tag}`).join(", "),
+    "", "=== STAPH HERD ===",
+    `Total: ${(S.staphCows||[]).length}`,
+    !(S.staphCows||[]).length?"(none)":(S.staphCows||[]).map(c=>`Tag ${c.tag}`).join(", "),
     "", "=== OAD ===",
     `Total: ${(S.oad||[]).length}`,
     !(S.oad||[]).length?"(none)":(S.oad||[]).map(c=>`Tag ${c.tag}`).join(", "),
@@ -2336,7 +2407,7 @@ async function doImport() {
     if (start===-1||end===-1) throw new Error();
     const imported = JSON.parse(jsonStr.slice(start,end+1));
     if (!imported.bays) throw new Error();
-    ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
+    ['treatments','newMoms','colostrumMob','milkingHerd','staphCows','oad','peno','lameCows','lameArchive','watchList','calvedList','calvingHistory','usedKeeperTags','cowDeaths']
       .forEach(k => { imported[k] = imported[k] || []; });
     if (!imported.heiferBay) imported.heiferBay = 'Bay 6';
     imported.tallySnapshots = imported.tallySnapshots || [];
@@ -2356,7 +2427,7 @@ async function doImport() {
     _unsubscribe = window._onSnapshot(window._DATA_DOC, snap => {
       if (snap.exists()) {
         const d = snap.data();
-        ['treatments','newMoms','colostrumMob','milkingHerd','oad','peno','lameCows','lameArchive']
+        ['treatments','newMoms','colostrumMob','milkingHerd','staphCows','oad','peno','lameCows','lameArchive']
           .forEach(k => { d[k] = d[k] || []; });
         S = d;
       }
@@ -2516,6 +2587,7 @@ function cowSearch() {
   if (S.newMoms.find(x=>x.tag===tag)) locations.push('New Moms');
   if (S.colostrumMob.find(x=>x.tag===tag)) { const c=S.colostrumMob.find(x=>x.tag===tag); locations.push(`Colostrum (${daysSince(c.dateEntered)}d)`); }
   if (S.milkingHerd.find(x=>x.tag===tag)) locations.push('Milking Herd');
+  if ((S.staphCows||[]).find(x=>x.tag===tag)) locations.push('Staph Herd');
   if (S.oad.find(x=>x.tag===tag)) locations.push('OAD');
   if (S.peno.find(x=>x.tag===tag)) locations.push('Peno');
   if (S.watchList.find(x=>x.tag===tag)) { const w=S.watchList.find(x=>x.tag===tag); locations.push(`Watch List (${w.status}, ${w.location||'?'})`); }
