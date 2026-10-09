@@ -450,6 +450,7 @@ input:focus,select:focus{border-color:var(--accent)}
           <div>
             <label id="mob1Label" style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Mob 1</label>
             <input type="number" id="mob1Input" min="0" style="width:100%" oninput="updateMobSplit()">
+            <div id="mob1CountRow" style="display:none;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted)">Count: <span id="mob1CountDisp" style="font-weight:700;color:var(--accent)">—</span></div>
           </div>
           <div>
             <label style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Mob 2</label>
@@ -893,6 +894,8 @@ function setSplitMode(mode) {
   if (tagBtn) { tagBtn.style.background = mode==='tag' ? 'var(--accent)' : 'var(--bg)'; tagBtn.style.color = mode==='tag' ? '#fff' : 'var(--muted)'; }
   if (label) label.textContent = mode==='tag' ? 'Highest tag (Mob 1)' : 'Mob 1';
   if (hint) hint.style.display = mode==='tag' ? '' : 'none';
+  const countRow = document.getElementById('mob1CountRow');
+  if (countRow) countRow.style.display = mode==='tag' ? '' : 'none';
   updateMobSplit();
 }
 
@@ -917,8 +920,8 @@ function updateMobSplit() {
   S.mob1 = mob1; S.mob2 = mob2; S.mob3 = staph;
   const calc = document.getElementById('mob2Calc');
   if (calc) calc.textContent = mob2 >= 0 ? mob2 : '—';
-  const m1disp = document.getElementById('mob1Calc');
-  if (m1disp) m1disp.textContent = mob1;
+  const m1CountDisp = document.getElementById('mob1CountDisp');
+  if (m1CountDisp) m1CountDisp.textContent = mob1;
   const stDisp = document.getElementById('staphCountDisp');
   if (stDisp) stDisp.textContent = staph;
   save();
