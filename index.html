@@ -439,10 +439,16 @@ input:focus,select:focus{border-color:var(--accent)}
       </div>
       <div id="milkBody" style="display:none">
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:12px">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Mob Split</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.66rem;text-transform:uppercase;color:var(--muted)">Mob Split</div>
+          <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:3px;overflow:hidden">
+            <button id="splitModeNum" onclick="setSplitMode('number')" style="font-family:'JetBrains Mono',monospace;font-size:.6rem;padding:2px 8px;border:none;cursor:pointer;background:var(--accent);color:#fff">Number</button>
+            <button id="splitModeTag" onclick="setSplitMode('tag')" style="font-family:'JetBrains Mono',monospace;font-size:.6rem;padding:2px 8px;border:none;cursor:pointer;background:var(--bg);color:var(--muted)">Highest tag</button>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
           <div>
-            <label style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Mob 1</label>
+            <label id="mob1Label" style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px">Mob 1</label>
             <input type="number" id="mob1Input" min="0" style="width:100%" oninput="updateMobSplit()">
           </div>
           <div>
@@ -454,6 +460,7 @@ input:focus,select:focus{border-color:var(--accent)}
             <div id="staphCountDisp" style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--accent);padding:8px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px">0</div>
           </div>
         </div>
+        <div id="mob1TagHint" style="display:none;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:6px">Counts milking herd cows with tag ≤ entered number (excl. staph)</div>
       </div>
       <!-- Staph Herd -->
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:12px">
@@ -663,7 +670,7 @@ function freshState() {
     bays: {"Bay 1":0,"Bay 2":0,"Bay 3":0,"Bay 4":0,"Bay 5":0,"Bay 6":0,"Penicillin Paddock":0},
     treatments: [], newMoms: [], colostrumMob: [], milkingHerd: [], staphCows: [],
     oad: [], peno: [], lameCows: [], lameArchive: [],
-    watchList: [], calvedList: [], calvingHistory: [], usedKeeperTags: [], cowDeaths: [], heiferBay: "Bay 6", tallySnapshots: [], mob1: 0, mob2: 0, mob3: 0
+    watchList: [], calvedList: [], calvingHistory: [], usedKeeperTags: [], cowDeaths: [], heiferBay: "Bay 6", tallySnapshots: [], mob1: 0, mob2: 0, mob3: 0, splitMode: 'number', mob1Tag: 0
   };
 }
 
@@ -736,6 +743,8 @@ window.startFirestoreSync = function() {
       d.mob1 = d.mob1 || 0;
       d.mob2 = d.mob2 || 0;
       d.mob3 = d.mob3 || 0;
+      d.splitMode = d.splitMode || 'number';
+      d.mob1Tag = d.mob1Tag || 0;
       S = d;
       // Auto-dedup milking herd on load — keep first occurrence of each tag
       if (S.milkingHerd && S.milkingHerd.length) {
@@ -874,14 +883,42 @@ function toggleSection(cardId, bodyId) {
   if (chev) chev.textContent = collapsed ? '▾' : '▸';
 }
 
+function setSplitMode(mode) {
+  S.splitMode = mode;
+  const numBtn = document.getElementById('splitModeNum');
+  const tagBtn = document.getElementById('splitModeTag');
+  const label = document.getElementById('mob1Label');
+  const hint = document.getElementById('mob1TagHint');
+  if (numBtn) { numBtn.style.background = mode==='number' ? 'var(--accent)' : 'var(--bg)'; numBtn.style.color = mode==='number' ? '#fff' : 'var(--muted)'; }
+  if (tagBtn) { tagBtn.style.background = mode==='tag' ? 'var(--accent)' : 'var(--bg)'; tagBtn.style.color = mode==='tag' ? '#fff' : 'var(--muted)'; }
+  if (label) label.textContent = mode==='tag' ? 'Highest tag (Mob 1)' : 'Mob 1';
+  if (hint) hint.style.display = mode==='tag' ? '' : 'none';
+  updateMobSplit();
+}
+
 function updateMobSplit() {
-  const total = S.milkingHerd.length;
+  const mode = S.splitMode || 'number';
   const staph = (S.staphCows || []).length;
-  const mob1 = parseInt(document.getElementById('mob1Input')?.value||0)||0;
-  const mob2 = Math.max(0, total - mob1 - staph);
+  const staphTags = new Set((S.staphCows||[]).map(c=>c.tag));
+  const herd = (S.milkingHerd||[]).filter(c => !staphTags.has(c.tag));
+  const total = S.milkingHerd.length;
+  const inputVal = parseInt(document.getElementById('mob1Input')?.value||0)||0;
+  let mob1, mob2;
+  if (mode === 'tag') {
+    // Count herd cows (excl staph) with numeric tag <= inputVal
+    mob1 = herd.filter(c => { const n = parseInt(c.tag); return !isNaN(n) && n <= inputVal; }).length;
+    mob2 = herd.length - mob1;
+    S.mob1Tag = inputVal;
+  } else {
+    mob1 = inputVal;
+    mob2 = Math.max(0, herd.length - mob1);
+    S.mob1Tag = 0;
+  }
   S.mob1 = mob1; S.mob2 = mob2; S.mob3 = staph;
   const calc = document.getElementById('mob2Calc');
-  if (calc) calc.textContent = mob2;
+  if (calc) calc.textContent = mob2 >= 0 ? mob2 : '—';
+  const m1disp = document.getElementById('mob1Calc');
+  if (m1disp) m1disp.textContent = mob1;
   const stDisp = document.getElementById('staphCountDisp');
   if (stDisp) stDisp.textContent = staph;
   save();
@@ -1740,9 +1777,10 @@ function renderMineralCalc() {
 }
 
 function initMobSplit() {
+  const mode = S.splitMode || 'number';
   const m1 = document.getElementById('mob1Input');
-  if (m1) m1.value = S.mob1 || '';
-  updateMobSplit();
+  if (m1) m1.value = mode === 'tag' ? (S.mob1Tag || '') : (S.mob1 || '');
+  setSplitMode(mode);
 }
 
 function initMineralCalc() {
